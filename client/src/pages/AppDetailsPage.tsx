@@ -131,7 +131,7 @@ export default function AppDetailsPage() {
         <div className="mt-6">
           <a 
             href={latestVersion?.apkUrl || '#'}
-            download
+            download={`${appName}.apk`}
             className="w-full bg-primary hover:bg-blue-600 text-white px-10 py-3 rounded-full font-bold text-base transition-all shadow-lg hover:shadow-primary/30 active:scale-[0.98] flex items-center justify-center cursor-pointer"
           >
             Install
