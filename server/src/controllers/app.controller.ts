@@ -189,7 +189,9 @@ const deleteFromImageKit = async (url: string) => {
     const files = await imagekit.listFiles({ searchQuery: `name="${cleanFileName}"` });
     if (files && files.length > 0) {
       for (const file of files) {
-        await imagekit.deleteFile(file.fileId);
+        if ('fileId' in file) {
+          await imagekit.deleteFile((file as any).fileId);
+        }
       }
     }
   } catch (error) {

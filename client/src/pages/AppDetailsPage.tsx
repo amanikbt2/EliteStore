@@ -44,9 +44,7 @@ export default function AppDetailsPage() {
       if (!res.ok) throw new Error('Failed to fetch app');
       return res.json();
     },
-    enabled: !!packageName,
-    retry: 3,
-    retryDelay: 1000
+    enabled: !!packageName
   });
   
   const appResponse = data?.data;
@@ -59,6 +57,44 @@ export default function AppDetailsPage() {
   const [canScrollLeft, setCanScrollLeft] = useState(false);
   const [canScrollRight, setCanScrollRight] = useState(true);
   const [copiedLink, setCopiedLink] = useState(false);
+
+  const geoRef = useRef<{ country?: string, city?: string } | null>(null);
+
+  const trackEvent = useCallback(async (action: string, metadata: any = {}) => {
+    if (!packageName) return;
+    try {
+      if (!geoRef.current) {
+        const geoRes = await fetch('https://ipapi.co/json/').catch(() => null);
+        if (geoRes?.ok) {
+          const geo = await geoRes.json();
+          geoRef.current = { country: geo.country, city: geo.city };
+        } else {
+          geoRef.current = {};
+        }
+      }
+      
+      const apiUrl = import.meta.env.VITE_API_URL || 'http://127.0.0.1:5000';
+      await fetch(`${apiUrl}/api/logs`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action,
+          packageName,
+          metadata: {
+            ...metadata,
+            ...geoRef.current,
+            referrer: document.referrer || 'Direct'
+          }
+        })
+      });
+    } catch (error) {
+      // Ignore tracking errors
+    }
+  }, [packageName]);
+
+  useEffect(() => {
+    trackEvent('view_app');
+  }, [trackEvent]);
 
   const { data: reviewsData, isLoading: isLoadingReviews } = useQuery({
     queryKey: ['reviews', packageName],
@@ -99,6 +135,7 @@ export default function AppDetailsPage() {
     e.preventDefault();
     if (!reviewForm.comment.trim()) return;
     setIsSubmittingReview(true);
+    trackEvent('submit_review', { rating: reviewForm.stars });
     submitReview.mutate(reviewForm);
   };
 
@@ -184,6 +221,7 @@ export default function AppDetailsPage() {
               <p className="text-primary text-sm sm:text-base font-semibold truncate">{app?.developer || 'Developer'}</p>
               <button 
                 onClick={() => {
+                  trackEvent('copy_link');
                   const url = window.location.href;
                   navigator.clipboard.writeText(url);
                   setCopiedLink(true);
@@ -227,6 +265,7 @@ export default function AppDetailsPage() {
         <div className="mt-6">
           <a 
             href={latestVersion?.apkUrl || '#'}
+            onClick={() => trackEvent('install_app')}
             download={`${appName}.apk`}
             className="w-full bg-primary hover:bg-blue-600 text-white px-10 py-3 rounded-full font-bold text-base transition-all shadow-lg hover:shadow-primary/30 active:scale-[0.98] flex items-center justify-center cursor-pointer"
           >

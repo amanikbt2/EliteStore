@@ -2,20 +2,22 @@ import { useState, useRef, useEffect } from 'react';
 import toast from 'react-hot-toast';
 import { 
   PlusCircle, Upload, LayoutGrid, Search, ArrowLeft, 
-  History, UploadCloud, BarChart3, AppWindow, Star, Download, Copy, Check, Trash2
+  History, UploadCloud, BarChart3, AppWindow, Star, Download, Copy, Check, Trash2, Activity, Globe2, Eraser
 } from 'lucide-react';
 
 
 
 export default function AdminDashboard() {
-  const [activeTab, setActiveTab] = useState<'overview' | 'apps'>('overview');
+  const [activeTab, setActiveTab] = useState<'overview' | 'apps' | 'logs'>('overview');
   const [apps, setApps] = useState<any[]>([]);
   const [selectedApp, setSelectedApp] = useState<any>(null);
   const [isPublishingNew, setIsPublishingNew] = useState(false);
   const [isPublishing, setIsPublishing] = useState(false);
   const [isDeletingApp, setIsDeletingApp] = useState(false);
   const [copiedLink, setCopiedLink] = useState(false);
-
+  const [stats, setStats] = useState({ totalApps: 0, totalDownloads: 0, pendingReviews: 0 });
+  const [logs, setLogs] = useState<any[]>([]);
+  const [isFetchingLogs, setIsFetchingLogs] = useState(false);
   const [appName, setAppName] = useState('');
   const [packageName, setPackageName] = useState('');
   const [developer, setDeveloper] = useState('');
@@ -37,7 +39,30 @@ export default function AdminDashboard() {
 
   useEffect(() => {
     fetchApps();
+    fetchStats();
   }, []);
+
+  useEffect(() => {
+    if (activeTab === 'logs') {
+      fetchLogs();
+    }
+  }, [activeTab]);
+
+  const fetchStats = async () => {
+    try {
+      const apiUrl = import.meta.env.VITE_API_URL || 'http://127.0.0.1:5000';
+      const token = localStorage.getItem('adminToken');
+      const res = await fetch(`${apiUrl}/api/admin/stats`, {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      const data = await res.json();
+      if (data.success) {
+        setStats(data.data);
+      }
+    } catch (error) {
+      console.error('Error fetching stats:', error);
+    }
+  };
 
   const fetchApps = async () => {
     try {
@@ -52,6 +77,42 @@ export default function AdminDashboard() {
       }
     } catch (error) {
       console.error('Error fetching apps:', error);
+    }
+  };
+
+  const fetchLogs = async () => {
+    setIsFetchingLogs(true);
+    try {
+      const apiUrl = import.meta.env.VITE_API_URL || 'http://127.0.0.1:5000';
+      const token = localStorage.getItem('adminToken');
+      const res = await fetch(`${apiUrl}/api/logs`, {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      const data = await res.json();
+      if (data.success) setLogs(data.data.logs || []);
+    } catch (error) {
+      console.error('Error fetching logs:', error);
+    } finally {
+      setIsFetchingLogs(false);
+    }
+  };
+
+  const handleClearLogs = async () => {
+    if (!window.confirm('Are you sure you want to clear all logs? This cannot be undone.')) return;
+    try {
+      const apiUrl = import.meta.env.VITE_API_URL || 'http://127.0.0.1:5000';
+      const token = localStorage.getItem('adminToken');
+      const res = await fetch(`${apiUrl}/api/logs`, {
+        method: 'DELETE',
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      const data = await res.json();
+      if (data.success) {
+        toast.success('Logs cleared successfully');
+        setLogs([]);
+      }
+    } catch (error) {
+      toast.error('Failed to clear logs');
     }
   };
 
@@ -234,18 +295,7 @@ export default function AdminDashboard() {
     }
   };
 
-  const fetchAppVersions = async (packageName: string) => {
-    try {
-      const apiUrl = import.meta.env.VITE_API_URL || 'http://127.0.0.1:5000';
-      const res = await fetch(`${apiUrl}/api/apps/${packageName}`);
-      const data = await res.json();
-      if (data.success && data.data.app) {
-        setSelectedApp(data.data.app);
-      }
-    } catch (error) {
-      console.error('Error fetching app details:', error);
-    }
-  };
+
 
   const handleDeleteApp = async () => {
     if (!selectedApp) return;
@@ -287,17 +337,17 @@ export default function AdminDashboard() {
         <div className="bg-surface-dark p-6 rounded-2xl shadow-xl border border-gray-100/5 relative overflow-hidden group">
           <div className="absolute -right-4 -top-4 w-24 h-24 bg-primary/10 rounded-full blur-xl group-hover:bg-primary/20 transition-all"></div>
           <h3 className="text-text-muted text-sm font-medium mb-2 relative z-10">Total Apps</h3>
-          <p className="text-4xl font-bold text-text relative z-10">124</p>
+          <p className="text-4xl font-bold text-text relative z-10">{stats.totalApps}</p>
         </div>
         <div className="bg-surface-dark p-6 rounded-2xl shadow-xl border border-gray-100/5 relative overflow-hidden group">
           <div className="absolute -right-4 -top-4 w-24 h-24 bg-green-500/10 rounded-full blur-xl group-hover:bg-green-500/20 transition-all"></div>
           <h3 className="text-text-muted text-sm font-medium mb-2 relative z-10">Total Downloads</h3>
-          <p className="text-4xl font-bold text-text relative z-10">45.2K</p>
+          <p className="text-4xl font-bold text-text relative z-10">{stats.totalDownloads > 1000 ? (stats.totalDownloads/1000).toFixed(1) + 'K' : stats.totalDownloads}</p>
         </div>
         <div className="bg-surface-dark p-6 rounded-2xl shadow-xl border border-gray-100/5 relative overflow-hidden group">
           <div className="absolute -right-4 -top-4 w-24 h-24 bg-orange-500/10 rounded-full blur-xl group-hover:bg-orange-500/20 transition-all"></div>
           <h3 className="text-text-muted text-sm font-medium mb-2 relative z-10">Pending Reviews</h3>
-          <p className="text-4xl font-bold text-text relative z-10">12</p>
+          <p className="text-4xl font-bold text-text relative z-10">{stats.pendingReviews}</p>
         </div>
       </div>
 
@@ -616,6 +666,70 @@ export default function AdminDashboard() {
     </div>
   );
 
+  const renderLogs = () => {
+    return (
+      <div className="animate-in fade-in slide-in-from-bottom-4 duration-500 max-w-5xl mx-auto">
+        <div className="flex items-center justify-between mb-8">
+          <div>
+            <h3 className="text-2xl font-bold text-text">Activity Logs</h3>
+            <p className="text-text-muted mt-1">Track user interactions across the store</p>
+          </div>
+          <button 
+            onClick={handleClearLogs}
+            className="flex items-center gap-2 bg-red-500/10 hover:bg-red-500/20 text-red-500 border border-red-500/20 px-4 py-2 rounded-lg font-medium transition-colors"
+          >
+            <Eraser className="w-4 h-4" /> Clear Logs
+          </button>
+        </div>
+
+        <div className="bg-surface-dark border border-gray-100/5 rounded-3xl overflow-hidden shadow-xl">
+          {isFetchingLogs ? (
+            <div className="p-12 text-center text-text-muted">Loading logs...</div>
+          ) : logs.length === 0 ? (
+            <div className="p-12 text-center text-text-muted">No activity logs found.</div>
+          ) : (
+            <div className="divide-y divide-gray-800/50">
+              {logs.map((log) => (
+                <div key={log._id} className="p-5 flex items-start gap-4 hover:bg-gray-800/20 transition-colors">
+                  <div className="mt-1 w-10 h-10 bg-primary/10 rounded-full flex items-center justify-center shrink-0">
+                    <Activity className="w-5 h-5 text-primary" />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <div className="flex flex-wrap items-center justify-between gap-2">
+                      <p className="text-text font-medium">
+                        {log.action === 'view_app' && <span>Viewed <span className="text-primary">{log.packageName}</span></span>}
+                        {log.action === 'install_app' && <span>Clicked Install on <span className="text-primary">{log.packageName}</span></span>}
+                        {log.action === 'copy_link' && <span>Copied link for <span className="text-primary">{log.packageName}</span></span>}
+                        {log.action === 'submit_review' && <span>Submitted a {log.metadata?.rating}-star review for <span className="text-primary">{log.packageName}</span></span>}
+                      </p>
+                      <span className="text-xs text-text-muted whitespace-nowrap">
+                        {new Date(log.createdAt).toLocaleString()}
+                      </span>
+                    </div>
+                    
+                    <div className="mt-2 flex flex-wrap items-center gap-3 text-xs text-text-muted">
+                      {log.metadata?.country && (
+                        <span className="flex items-center gap-1 bg-gray-800/50 px-2 py-1 rounded-md border border-gray-700/50">
+                          <Globe2 className="w-3.5 h-3.5" />
+                          {log.metadata.city ? `${log.metadata.city}, ` : ''}{log.metadata.country}
+                        </span>
+                      )}
+                      {log.metadata?.referrer && log.metadata.referrer !== 'Direct' && (
+                        <span className="bg-gray-800/50 px-2 py-1 rounded-md border border-gray-700/50">
+                          Ref: {log.metadata.referrer}
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      </div>
+    );
+  };
+
   return (
     <div className="max-w-6xl mx-auto px-4 pb-12">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-8">
@@ -640,11 +754,19 @@ export default function AdminDashboard() {
             >
               <AppWindow className="w-4 h-4" /> Published Apps
             </button>
+            <button
+              onClick={() => setActiveTab('logs')}
+              className={`flex items-center gap-2 px-5 py-2 rounded-lg font-medium transition-all ${
+                activeTab === 'logs' ? 'bg-primary text-white shadow' : 'text-text-muted hover:text-text hover:bg-gray-800'
+              }`}
+            >
+              <Activity className="w-4 h-4" /> Logs
+            </button>
           </div>
         )}
       </div>
 
-      {isPublishingNew ? renderPublishNew() : selectedApp ? renderAppManagement() : activeTab === 'overview' ? renderOverview() : renderAppList()}
+      {isPublishingNew ? renderPublishNew() : selectedApp ? renderAppManagement() : activeTab === 'overview' ? renderOverview() : activeTab === 'apps' ? renderAppList() : renderLogs()}
     </div>
   );
 }
