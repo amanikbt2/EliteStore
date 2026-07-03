@@ -18,6 +18,7 @@ export const uploadImage = async (req: Request, res: Response): Promise<void> =>
 
     sendSuccess(res, { url: result.url, fileId: result.fileId }, 'Image uploaded');
   } catch (error) {
+    console.error('ImageKit Upload Error:', error);
     sendError(res, 'Image upload failed', 500);
   }
 };
@@ -47,6 +48,7 @@ export const uploadApk = async (req: Request, res: Response): Promise<void> => {
       checksum 
     }, 'APK uploaded');
   } catch (error) {
+    console.error('ImageKit APK Upload Error:', error);
     sendError(res, 'APK upload failed', 500);
   }
 };

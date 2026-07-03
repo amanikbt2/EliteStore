@@ -5,7 +5,7 @@ import { requireAdmin } from '../middleware/auth';
 
 const router = Router();
 
-router.post('/image', requireAdmin, upload.single('image'), uploadImage);
-router.post('/apk', requireAdmin, upload.single('apk'), uploadApk);
+router.post('/image', requireAdmin, upload.single('file'), uploadImage);
+router.post('/apk', requireAdmin, upload.single('file'), uploadApk);
 
 export default router;
