@@ -29,7 +29,9 @@ export default function AppDetailsPage() {
     enabled: !!packageName
   });
   
-  const app = data?.data;
+  const appResponse = data?.data;
+  const app = appResponse?.app;
+  const latestVersion = appResponse?.latestVersion;
   const appName = app?.name || formatAppName(packageName);
   
   const [fullscreenIndex, setFullscreenIndex] = useState<number | null>(null);
@@ -110,7 +112,7 @@ export default function AppDetailsPage() {
           <div className="w-px h-8 bg-gray-700/50"></div>
           <div className="flex flex-col items-center">
             <div className="flex items-center font-bold text-lg sm:text-xl text-text">
-              {app?.size || 'N/A'}
+              {latestVersion?.fileSize ? (latestVersion.fileSize / (1024 * 1024)).toFixed(1) + ' MB' : 'N/A'}
             </div>
             <div className="text-[10px] sm:text-xs text-text-muted mt-1">Size</div>
           </div>
@@ -122,7 +124,7 @@ export default function AppDetailsPage() {
             <div className="w-full bg-surface-dark text-center py-3 rounded-full font-bold text-base border border-gray-700 text-gray-400">Loading...</div>
           ) : (
             <a 
-              href={app?.apkUrl || '#'}
+              href={latestVersion?.apkUrl || '#'}
               download
               className="w-full bg-primary hover:bg-blue-600 text-white px-10 py-3 rounded-full font-bold text-base transition-all shadow-lg hover:shadow-primary/30 active:scale-[0.98] flex items-center justify-center cursor-pointer"
             >
