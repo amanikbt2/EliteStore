@@ -1,7 +1,7 @@
 import { useParams, useNavigate } from 'react-router-dom';
-import { ArrowLeft, Star, Download, LayoutGrid, X, ChevronLeft, ChevronRight, Loader2 } from 'lucide-react';
+import { ArrowLeft, Star, Download, LayoutGrid, X, ChevronLeft, ChevronRight, Loader2, Send, User } from 'lucide-react';
 import { useState, useRef, useEffect, useCallback } from 'react';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 
 function formatAppName(packageName: string | undefined) {
   if (!packageName) return 'App Name';
@@ -14,9 +14,26 @@ function formatAppName(packageName: string | undefined) {
   return formatted;
 }
 
+const ReviewComment = ({ text }: { text: string }) => {
+  const [expanded, setExpanded] = useState(false);
+  const isLong = text.length > 150;
+  
+  return (
+    <p className="text-text-muted text-sm whitespace-pre-wrap">
+      {expanded || !isLong ? text : `${text.substring(0, 150)}...`}
+      {isLong && (
+        <button onClick={() => setExpanded(!expanded)} className="text-primary hover:underline ml-2 font-medium">
+          {expanded ? 'Show less' : 'Show more'}
+        </button>
+      )}
+    </p>
+  );
+};
+
 export default function AppDetailsPage() {
   const { packageName } = useParams();
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
   
   const { data, isLoading } = useQuery({
     queryKey: ['app', packageName],
@@ -38,6 +55,48 @@ export default function AppDetailsPage() {
   const scrollRef = useRef<HTMLDivElement>(null);
   const [canScrollLeft, setCanScrollLeft] = useState(false);
   const [canScrollRight, setCanScrollRight] = useState(true);
+
+  const { data: reviewsData, isLoading: isLoadingReviews } = useQuery({
+    queryKey: ['reviews', packageName],
+    queryFn: async () => {
+      const apiUrl = import.meta.env.VITE_API_URL || 'http://127.0.0.1:5000';
+      const res = await fetch(`${apiUrl}/api/apps/${packageName}/reviews`);
+      if (!res.ok) throw new Error('Failed to fetch reviews');
+      return res.json();
+    },
+    enabled: !!packageName
+  });
+
+  const reviews = reviewsData?.data?.reviews || [];
+
+  const [reviewForm, setReviewForm] = useState({ username: '', stars: 5, comment: '' });
+  const [isSubmittingReview, setIsSubmittingReview] = useState(false);
+
+  const submitReview = useMutation({
+    mutationFn: async (newReview: any) => {
+      const apiUrl = import.meta.env.VITE_API_URL || 'http://127.0.0.1:5000';
+      const res = await fetch(`${apiUrl}/api/apps/${packageName}/reviews`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(newReview)
+      });
+      if (!res.ok) throw new Error('Failed to submit review');
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['reviews', packageName] });
+      queryClient.invalidateQueries({ queryKey: ['app', packageName] });
+      setReviewForm({ username: '', stars: 5, comment: '' });
+      setIsSubmittingReview(false);
+    }
+  });
+
+  const handleReviewSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!reviewForm.comment.trim()) return;
+    setIsSubmittingReview(true);
+    submitReview.mutate(reviewForm);
+  };
 
   const checkScroll = useCallback(() => {
     if (scrollRef.current) {
@@ -182,6 +241,98 @@ export default function AppDetailsPage() {
         <p className="text-text-muted leading-relaxed text-sm sm:text-base whitespace-pre-wrap">
           {app?.description || 'Experience the ultimate app tailored just for you. This application brings you unparalleled features, a sleek design, and top-tier performance to enhance your daily life. Explore new possibilities today!'}
         </p>
+      </div>
+
+      {/* Reviews Section */}
+      <div className="mt-8 bg-surface-dark p-6 rounded-3xl shadow-xl border border-gray-100/5 mb-10">
+        <h2 className="text-xl font-bold text-text mb-6 flex items-center gap-2">
+          Ratings and reviews
+        </h2>
+
+        {/* Review Form */}
+        <form onSubmit={handleReviewSubmit} className="mb-8 bg-gray-800/30 p-5 rounded-2xl border border-gray-700/50">
+          <h3 className="text-base font-semibold text-text mb-4">Rate this app</h3>
+          
+          <div className="flex items-center gap-2 mb-4">
+            {[1, 2, 3, 4, 5].map((star) => (
+              <button
+                key={star}
+                type="button"
+                onClick={() => setReviewForm({ ...reviewForm, stars: star })}
+                className="focus:outline-none transition-transform hover:scale-110"
+              >
+                <Star className={`w-8 h-8 ${star <= reviewForm.stars ? 'fill-primary text-primary' : 'text-gray-600'}`} />
+              </button>
+            ))}
+          </div>
+
+          <div className="space-y-4">
+            <input
+              type="text"
+              placeholder="Your name (optional)"
+              value={reviewForm.username}
+              onChange={(e) => setReviewForm({ ...reviewForm, username: e.target.value })}
+              className="w-full bg-gray-900/50 border border-gray-700 rounded-xl px-4 py-3 text-text placeholder-gray-500 focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary transition-all"
+            />
+            <textarea
+              placeholder="Describe your experience (optional)"
+              value={reviewForm.comment}
+              onChange={(e) => setReviewForm({ ...reviewForm, comment: e.target.value })}
+              rows={3}
+              className="w-full bg-gray-900/50 border border-gray-700 rounded-xl px-4 py-3 text-text placeholder-gray-500 focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary transition-all resize-none"
+            ></textarea>
+            <div className="flex justify-end">
+              <button
+                type="submit"
+                disabled={isSubmittingReview || !reviewForm.comment.trim()}
+                className="bg-primary hover:bg-blue-600 disabled:opacity-50 disabled:cursor-not-allowed text-white px-6 py-2 rounded-full font-bold flex items-center gap-2 transition-all shadow-lg active:scale-95"
+              >
+                {isSubmittingReview ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
+                Post
+              </button>
+            </div>
+          </div>
+        </form>
+
+        {/* Reviews List */}
+        {isLoadingReviews ? (
+          <div className="flex justify-center py-8">
+            <Loader2 className="w-8 h-8 text-primary animate-spin" />
+          </div>
+        ) : reviews.length > 0 ? (
+          <div className="space-y-6">
+            {reviews.map((review: any) => (
+              <div key={review._id} className="border-b border-gray-700/50 pb-6 last:border-0 last:pb-0">
+                <div className="flex items-start gap-4">
+                  <div className="w-10 h-10 rounded-full bg-gray-800 flex items-center justify-center shrink-0">
+                    <User className="w-5 h-5 text-gray-400" />
+                  </div>
+                  <div className="flex-1">
+                    <div className="flex items-center justify-between">
+                      <h4 className="font-semibold text-text">{review.username}</h4>
+                      <span className="text-xs text-text-muted">
+                        {new Date(review.createdAt).toLocaleDateString()}
+                      </span>
+                    </div>
+                    <div className="flex items-center mt-1 mb-2">
+                      {[1, 2, 3, 4, 5].map((star) => (
+                        <Star 
+                          key={star} 
+                          className={`w-3.5 h-3.5 ${star <= review.stars ? 'fill-primary text-primary' : 'text-gray-700'}`} 
+                        />
+                      ))}
+                    </div>
+                    <ReviewComment text={review.comment} />
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        ) : (
+          <div className="text-center py-8 text-gray-500">
+            No reviews yet. Be the first to review this app!
+          </div>
+        )}
       </div>
 
       {/* Fullscreen Preview Modal */}
