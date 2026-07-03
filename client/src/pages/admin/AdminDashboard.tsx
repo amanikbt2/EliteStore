@@ -422,8 +422,12 @@ export default function AdminDashboard() {
 
       {/* App Header */}
       <div className="bg-surface-dark p-6 rounded-3xl shadow-xl border border-gray-100/5 mb-8 flex items-center gap-5">
-        <div className="w-20 h-20 bg-gradient-to-tr from-primary to-accent rounded-2xl shadow-lg flex items-center justify-center shrink-0">
-          <LayoutGrid className="w-10 h-10 text-white" />
+        <div className="w-20 h-20 bg-gradient-to-tr from-primary/80 to-accent/80 rounded-2xl shadow-lg flex items-center justify-center shrink-0 overflow-hidden">
+          {selectedApp?.iconUrl ? (
+            <img src={selectedApp.iconUrl} alt="App Icon" className="w-full h-full object-cover" />
+          ) : (
+            <LayoutGrid className="w-10 h-10 text-white" />
+          )}
         </div>
         <div>
           <h2 className="text-2xl font-bold text-text">{selectedApp?.name}</h2>
