@@ -18,7 +18,7 @@ export default function AppDetailsPage() {
   const { packageName } = useParams();
   const navigate = useNavigate();
   
-  const { data, isLoading, error } = useQuery({
+  const { data, isLoading } = useQuery({
     queryKey: ['app', packageName],
     queryFn: async () => {
       const apiUrl = import.meta.env.VITE_API_URL || 'http://127.0.0.1:5000';
