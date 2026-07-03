@@ -1,0 +1,30 @@
+@import "tailwindcss";
+
+@theme {
+  --color-primary: #3b82f6;
+  --color-primary-dark: #2563eb;
+  
+  /* Light mode (default) */
+  --color-background-dark: #f1f5f9;
+  --color-background-darker: #ffffff;
+  --color-surface-dark: #f8fafc;
+  --color-text-dark: #0f172a;
+  --color-text-muted: #64748b;
+  --color-border: #e2e8f0;
+}
+
+/* Add support for .dark class if toggled */
+.dark {
+  --color-background-dark: #0f172a;
+  --color-background-darker: #020617;
+  --color-surface-dark: #1e293b;
+  --color-text-dark: #f8fafc;
+  --color-text-muted: #94a3b8;
+  --color-border: #334155;
+}
+
+@layer base {
+  body {
+    @apply bg-background-darker text-text-dark font-sans antialiased;
+  }
+}
