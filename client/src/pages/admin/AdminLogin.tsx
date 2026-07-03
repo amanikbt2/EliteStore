@@ -6,10 +6,26 @@ export default function AdminLogin() {
   const [password, setPassword] = useState('');
   const navigate = useNavigate();
 
-  const handleLogin = (e: React.FormEvent) => {
+  const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
-    // Placeholder login logic
-    navigate('/admin');
+    try {
+      const apiUrl = import.meta.env.VITE_API_URL || 'http://127.0.0.1:5000';
+      const res = await fetch(`${apiUrl}/api/admin/login`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ username, password })
+      });
+      const data = await res.json();
+      
+      if (data.success) {
+        localStorage.setItem('adminToken', data.data.token);
+        navigate('/admin');
+      } else {
+        alert(data.error || 'Login failed');
+      }
+    } catch (err) {
+      alert('Login error');
+    }
   };
 
   return (

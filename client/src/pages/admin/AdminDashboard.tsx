@@ -40,7 +40,10 @@ export default function AdminDashboard() {
   const fetchApps = async () => {
     try {
       const apiUrl = import.meta.env.VITE_API_URL || 'http://127.0.0.1:5000';
-      const res = await fetch(`${apiUrl}/api/apps`);
+      const token = localStorage.getItem('adminToken');
+      const res = await fetch(`${apiUrl}/api/apps`, {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
       const data = await res.json();
       if (data.success) {
         setApps(data.data.apps || []);
@@ -61,11 +64,16 @@ export default function AdminDashboard() {
 
     try {
       const apiUrl = import.meta.env.VITE_API_URL || 'http://127.0.0.1:5000';
+      const token = localStorage.getItem('adminToken');
       
       // 1. Upload Icon
       const iconFormData = new FormData();
       iconFormData.append('file', iconFile);
-      const iconRes = await fetch(`${apiUrl}/api/upload/image`, { method: 'POST', body: iconFormData });
+      const iconRes = await fetch(`${apiUrl}/api/upload/image`, { 
+        method: 'POST', 
+        headers: { 'Authorization': `Bearer ${token}` },
+        body: iconFormData 
+      });
       const iconData = await iconRes.json();
       if (!iconData.success) throw new Error('Icon upload failed');
 
@@ -73,7 +81,11 @@ export default function AdminDashboard() {
       toast.loading('Uploading APK...', { id: toastId });
       const apkFormData = new FormData();
       apkFormData.append('file', apkFile);
-      const apkRes = await fetch(`${apiUrl}/api/upload/apk`, { method: 'POST', body: apkFormData });
+      const apkRes = await fetch(`${apiUrl}/api/upload/apk`, { 
+        method: 'POST', 
+        headers: { 'Authorization': `Bearer ${token}` },
+        body: apkFormData 
+      });
       const apkData = await apkRes.json();
       if (!apkData.success) throw new Error('APK upload failed');
 
@@ -84,7 +96,11 @@ export default function AdminDashboard() {
         for (let i = 0; i < screenshotFiles.length; i++) {
           const ssFormData = new FormData();
           ssFormData.append('file', screenshotFiles[i]);
-          const ssRes = await fetch(`${apiUrl}/api/upload/image`, { method: 'POST', body: ssFormData });
+          const ssRes = await fetch(`${apiUrl}/api/upload/image`, { 
+            method: 'POST', 
+            headers: { 'Authorization': `Bearer ${token}` },
+            body: ssFormData 
+          });
           const ssData = await ssRes.json();
           if (ssData.success) uploadedScreenshots.push(ssData.data.url);
         }
@@ -94,7 +110,10 @@ export default function AdminDashboard() {
       toast.loading('Publishing App...', { id: toastId });
       const appRes = await fetch(`${apiUrl}/api/apps`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
         body: JSON.stringify({
           name: appName,
           packageName,
@@ -136,17 +155,25 @@ export default function AdminDashboard() {
 
     try {
       const apiUrl = import.meta.env.VITE_API_URL || 'http://127.0.0.1:5000';
+      const token = localStorage.getItem('adminToken');
       
       const apkFormData = new FormData();
       apkFormData.append('file', updateApkFile);
-      const apkRes = await fetch(`${apiUrl}/api/upload/apk`, { method: 'POST', body: apkFormData });
+      const apkRes = await fetch(`${apiUrl}/api/upload/apk`, { 
+        method: 'POST', 
+        headers: { 'Authorization': `Bearer ${token}` },
+        body: apkFormData 
+      });
       const apkData = await apkRes.json();
       if (!apkData.success) throw new Error('APK upload failed');
 
       toast.loading('Publishing Update...', { id: toastId });
       const updateRes = await fetch(`${apiUrl}/api/apps/${selectedApp.packageName}/update`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
         body: JSON.stringify({
           versionName: updateVersion,
           releaseNotes: updateNotes,

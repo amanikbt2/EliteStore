@@ -12,32 +12,17 @@ export const loginAdmin = async (req: Request, res: Response): Promise<void> => 
       return;
     }
 
-    const admin = await Admin.findOne({ username });
-    if (!admin) {
+    const adminUser = process.env.ADMIN_USER || 'admin';
+    const adminPass = process.env.ADMIN_PASS || 'admin123';
+
+    if (username !== adminUser || password !== adminPass) {
       sendError(res, 'Invalid credentials', 401);
       return;
     }
 
-    const isMatch = await bcrypt.compare(password, admin.passwordHash);
-    if (!isMatch) {
-      sendError(res, 'Invalid credentials', 401);
-      return;
-    }
+    const token = generateToken({ id: 'admin_id', username, role: 'admin' });
 
-    // Update last login
-    admin.lastLogin = new Date();
-    await admin.save();
-
-    const token = generateToken({ id: admin._id, username: admin.username, role: 'admin' });
-
-    res.cookie('token', token, {
-      httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
-      sameSite: 'strict',
-      maxAge: 24 * 60 * 60 * 1000 // 1 day
-    });
-
-    sendSuccess(res, { username: admin.username, lastLogin: admin.lastLogin }, 'Login successful');
+    sendSuccess(res, { username, token }, 'Login successful');
   } catch (error) {
     console.error('Login error:', error);
     sendError(res, 'Server error during login', 500);
