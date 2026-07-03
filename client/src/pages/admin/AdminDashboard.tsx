@@ -2,7 +2,7 @@ import { useState, useRef, useEffect } from 'react';
 import toast from 'react-hot-toast';
 import { 
   PlusCircle, Upload, LayoutGrid, Search, ArrowLeft, 
-  History, UploadCloud, BarChart3, AppWindow, Star, Download
+  History, UploadCloud, BarChart3, AppWindow, Star, Download, Copy, Check
 } from 'lucide-react';
 
 
@@ -13,6 +13,7 @@ export default function AdminDashboard() {
   const [selectedApp, setSelectedApp] = useState<any>(null);
   const [isPublishingNew, setIsPublishingNew] = useState(false);
   const [isPublishing, setIsPublishing] = useState(false);
+  const [copiedLink, setCopiedLink] = useState(false);
 
   const [appName, setAppName] = useState('');
   const [packageName, setPackageName] = useState('');
@@ -454,10 +455,25 @@ export default function AdminDashboard() {
             <LayoutGrid className="w-10 h-10 text-white" />
           )}
         </div>
-        <div>
+        <div className="flex-1">
           <h2 className="text-2xl font-bold text-text">{selectedApp?.name}</h2>
-          <p className="text-text-muted mt-1">{selectedApp?.developer}</p>
-          <div className="flex items-center gap-4 mt-2 text-sm">
+          <div className="flex items-center gap-3 mt-1">
+            <p className="text-text-muted">{selectedApp?.developer}</p>
+            <button 
+              onClick={() => {
+                const url = `${window.location.origin}/app/${selectedApp?.packageName}`;
+                navigator.clipboard.writeText(url);
+                setCopiedLink(true);
+                toast.success('App link copied!');
+                setTimeout(() => setCopiedLink(false), 2000);
+              }}
+              className="flex items-center gap-1.5 px-2 py-1 bg-surface-dark border border-gray-700 hover:bg-gray-800 text-gray-400 hover:text-text rounded-md transition-all text-xs cursor-pointer"
+            >
+              {copiedLink ? <Check className="w-3.5 h-3.5 text-green-500" /> : <Copy className="w-3.5 h-3.5" />}
+              <span>{copiedLink ? 'Copied!' : 'Copy Link'}</span>
+            </button>
+          </div>
+          <div className="flex items-center flex-wrap gap-4 mt-2 text-sm mb-3">
             <span className="px-2 py-1 bg-green-500/10 text-green-400 rounded-md font-semibold">Published</span>
             <span className="text-gray-400">{selectedApp?.downloads} Downloads</span>
           </div>
