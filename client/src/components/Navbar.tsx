@@ -1,10 +1,19 @@
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { Search, Menu, Bell, BellOff } from 'lucide-react';
 import { useState, useRef, useEffect } from 'react';
 
 export default function Navbar() {
+  const navigate = useNavigate();
+  const [searchQuery, setSearchQuery] = useState('');
   const [showNotifications, setShowNotifications] = useState(false);
   const notifRef = useRef<HTMLDivElement>(null);
+
+  const handleSearch = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (searchQuery.trim()) {
+      navigate(`/search?q=${encodeURIComponent(searchQuery.trim())}`);
+    }
+  };
 
   useEffect(() => {
     function handleClickOutside(event: MouseEvent) {
@@ -26,14 +35,16 @@ export default function Navbar() {
               EliteStore
             </Link>
           </div>
-          <div className="hidden md:flex flex-1 max-w-md mx-8 relative">
+          <form onSubmit={handleSearch} className="hidden md:flex flex-1 max-w-md mx-8 relative">
             <input 
               type="text" 
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
               placeholder="Search apps..." 
-              className="w-full bg-surface-dark text-text-dark border-none rounded-full py-2 pl-10 pr-4 focus:ring-2 focus:ring-primary"
+              className="w-full bg-surface-dark text-text-dark border-none rounded-full py-2 pl-10 pr-4 focus:ring-2 focus:ring-primary focus:outline-none"
             />
             <Search className="absolute left-3 top-2.5 text-text-muted h-5 w-5" />
-          </div>
+          </form>
           <div className="flex items-center gap-4 text-text-muted">
             <div className="relative" ref={notifRef}>
               <button 

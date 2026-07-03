@@ -2,7 +2,7 @@ import { useState, useRef, useEffect } from 'react';
 import toast from 'react-hot-toast';
 import { 
   PlusCircle, Upload, LayoutGrid, Search, ArrowLeft, 
-  History, UploadCloud, BarChart3, AppWindow, Star, Download, Copy, Check
+  History, UploadCloud, BarChart3, AppWindow, Star, Download, Copy, Check, Trash2
 } from 'lucide-react';
 
 
@@ -13,6 +13,7 @@ export default function AdminDashboard() {
   const [selectedApp, setSelectedApp] = useState<any>(null);
   const [isPublishingNew, setIsPublishingNew] = useState(false);
   const [isPublishing, setIsPublishing] = useState(false);
+  const [isDeletingApp, setIsDeletingApp] = useState(false);
   const [copiedLink, setCopiedLink] = useState(false);
 
   const [appName, setAppName] = useState('');
@@ -230,6 +231,51 @@ export default function AdminDashboard() {
       }
     } catch (e) {
       console.error('Failed to fetch full app details', e);
+    }
+  };
+
+  const fetchAppVersions = async (packageName: string) => {
+    try {
+      const apiUrl = import.meta.env.VITE_API_URL || 'http://127.0.0.1:5000';
+      const res = await fetch(`${apiUrl}/api/apps/${packageName}`);
+      const data = await res.json();
+      if (data.success && data.data.app) {
+        setSelectedApp(data.data.app);
+      }
+    } catch (error) {
+      console.error('Error fetching app details:', error);
+    }
+  };
+
+  const handleDeleteApp = async () => {
+    if (!selectedApp) return;
+    
+    if (!window.confirm(`Are you sure you want to permanently delete "${selectedApp.name}"? This will wipe the app, all versions, reviews, and uploaded files completely. This action CANNOT be undone.`)) {
+      return;
+    }
+
+    setIsDeletingApp(true);
+    const toastId = toast.loading('Deleting app and wiping files...');
+    
+    try {
+      const apiUrl = import.meta.env.VITE_API_URL || 'http://127.0.0.1:5000';
+      const token = localStorage.getItem('adminToken');
+      
+      const res = await fetch(`${apiUrl}/api/apps/${selectedApp.packageName}`, {
+        method: 'DELETE',
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      
+      const result = await res.json();
+      if (!result.success) throw new Error(result.message || 'Failed to delete app');
+      
+      toast.success('App deleted completely!', { id: toastId });
+      setSelectedApp(null);
+      fetchApps();
+    } catch (error: any) {
+      toast.error(error.message || 'Error deleting app', { id: toastId });
+    } finally {
+      setIsDeletingApp(false);
     }
   };
 
@@ -485,9 +531,19 @@ export default function AdminDashboard() {
         {/* Release Update Section */}
         <div className="space-y-8">
           <div className="bg-surface-dark p-6 rounded-3xl shadow-xl border border-gray-100/5">
-            <h3 className="text-lg font-bold text-text flex items-center gap-2 mb-6">
-              <UploadCloud className="w-5 h-5 text-primary" /> Release Update
-            </h3>
+            <div className="flex items-center justify-between mb-6">
+              <h3 className="text-lg font-bold text-text flex items-center gap-2">
+                <UploadCloud className="w-5 h-5 text-primary" /> Release Update
+              </h3>
+              <button 
+                onClick={handleDeleteApp}
+                disabled={isDeletingApp}
+                className="flex items-center gap-1.5 px-3 py-1.5 bg-red-500/10 hover:bg-red-500/20 text-red-500 text-sm rounded-lg font-medium transition-colors disabled:opacity-50"
+              >
+                <Trash2 className="w-4 h-4" /> 
+                {isDeletingApp ? 'Deleting...' : 'Delete App'}
+              </button>
+            </div>
             <form className="space-y-4" onSubmit={(e) => e.preventDefault()}>
               <div>
                 <label className="text-sm font-medium text-text-muted mb-1 block">Version Name</label>
