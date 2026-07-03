@@ -43,9 +43,14 @@ export default function AdminDashboard() {
   }, []);
 
   useEffect(() => {
+    let intervalId: any;
     if (activeTab === 'logs') {
-      fetchLogs();
+      fetchLogs(); // Initial fetch
+      intervalId = setInterval(() => {
+        fetchLogs(true); // Poll silently
+      }, 5000);
     }
+    return () => clearInterval(intervalId);
   }, [activeTab]);
 
   const fetchStats = async () => {
@@ -80,8 +85,8 @@ export default function AdminDashboard() {
     }
   };
 
-  const fetchLogs = async () => {
-    setIsFetchingLogs(true);
+  const fetchLogs = async (hideLoader = false) => {
+    if (!hideLoader) setIsFetchingLogs(true);
     try {
       const apiUrl = import.meta.env.VITE_API_URL || 'http://127.0.0.1:5000';
       const token = localStorage.getItem('adminToken');
@@ -93,7 +98,7 @@ export default function AdminDashboard() {
     } catch (error) {
       console.error('Error fetching logs:', error);
     } finally {
-      setIsFetchingLogs(false);
+      if (!hideLoader) setIsFetchingLogs(false);
     }
   };
 
@@ -262,6 +267,7 @@ export default function AdminDashboard() {
       
       // Fetch latest app info and update selected app (to refresh version history)
       fetchApps();
+      fetchStats();
       const updatedAppRes = await fetch(`${apiUrl}/api/apps/${selectedApp.packageName}`);
       const updatedApp = await updatedAppRes.json();
       if (updatedApp.success) {
@@ -322,6 +328,7 @@ export default function AdminDashboard() {
       toast.success('App deleted completely!', { id: toastId });
       setSelectedApp(null);
       fetchApps();
+      fetchStats();
     } catch (error: any) {
       toast.error(error.message || 'Error deleting app', { id: toastId });
     } finally {
@@ -697,6 +704,7 @@ export default function AdminDashboard() {
                   <div className="flex-1 min-w-0">
                     <div className="flex flex-wrap items-center justify-between gap-2">
                       <p className="text-text font-medium">
+                        {log.action === 'entered_store' && <span>Entered the Storefront</span>}
                         {log.action === 'view_app' && <span>Viewed <span className="text-primary">{log.packageName}</span></span>}
                         {log.action === 'install_app' && <span>Clicked Install on <span className="text-primary">{log.packageName}</span></span>}
                         {log.action === 'copy_link' && <span>Copied link for <span className="text-primary">{log.packageName}</span></span>}

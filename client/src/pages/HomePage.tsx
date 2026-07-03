@@ -1,5 +1,6 @@
 import { useQuery } from '@tanstack/react-query';
 import { Link } from 'react-router-dom';
+import { useEffect, useRef, useCallback } from 'react';
 
 export default function HomePage() {
   const { data, isLoading, error, refetch, isRefetching } = useQuery({
@@ -15,6 +16,43 @@ export default function HomePage() {
   });
 
   const apps = data?.data?.apps || [];
+
+  const geoRef = useRef<{ country?: string, city?: string } | null>(null);
+
+  const trackEvent = useCallback(async (action: string, metadata: any = {}) => {
+    try {
+      if (!geoRef.current) {
+        const geoRes = await fetch('https://ipapi.co/json/').catch(() => null);
+        if (geoRes?.ok) {
+          const geo = await geoRes.json();
+          geoRef.current = { country: geo.country, city: geo.city };
+        } else {
+          geoRef.current = {};
+        }
+      }
+      
+      const apiUrl = import.meta.env.VITE_API_URL || 'http://127.0.0.1:5000';
+      await fetch(`${apiUrl}/api/logs`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action,
+          packageName: 'Storefront',
+          metadata: {
+            ...metadata,
+            ...geoRef.current,
+            referrer: document.referrer || 'Direct'
+          }
+        })
+      });
+    } catch (error) {
+      // Ignore tracking errors
+    }
+  }, []);
+
+  useEffect(() => {
+    trackEvent('entered_store');
+  }, [trackEvent]);
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
