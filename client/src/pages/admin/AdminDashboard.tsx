@@ -717,7 +717,7 @@ export default function AdminDashboard() {
                     
                     <div className="mt-2 flex flex-wrap items-center gap-3 text-xs text-text-muted">
                       {log.metadata?.country && (
-                        <span className="flex items-center gap-1 bg-gray-800/50 px-2 py-1 rounded-md border border-gray-700/50">
+                        <span className="flex items-center gap-1.5 bg-blue-500/10 text-blue-400 px-2.5 py-1 rounded-full border border-blue-500/20 font-medium">
                           <Globe2 className="w-3.5 h-3.5" />
                           {log.metadata.city ? `${log.metadata.city}, ` : ''}{log.metadata.country}
                         </span>
