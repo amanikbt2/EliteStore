@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import { getApps, getAppByPackageName, checkUpdate, createApp, releaseUpdate } from '../controllers/app.controller';
+import { getApps, getAppByPackageName, checkUpdate, createApp, releaseUpdate, deleteApp } from '../controllers/app.controller';
 import { getReviews, createReview } from '../controllers/review.controller';
 
 const router = Router();
@@ -8,6 +8,7 @@ router.get('/', getApps);
 router.post('/', createApp);
 router.get('/:packageName', getAppByPackageName);
 router.post('/:packageName/update', releaseUpdate);
+router.delete('/:packageName', deleteApp);
 
 // Review routes
 router.get('/:packageName/reviews', getReviews);

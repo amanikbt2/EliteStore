@@ -287,8 +287,8 @@ export default function AppDetailsPage() {
         </h2>
 
         {/* Review Form */}
-        <form onSubmit={handleReviewSubmit} className="mb-8 bg-gray-800/30 p-5 rounded-2xl border border-gray-700/50">
-          <h3 className="text-base font-semibold text-text mb-4">Rate this app</h3>
+        <form onSubmit={handleReviewSubmit} className="mb-8 bg-background-dark p-5 rounded-2xl border border-border shadow-sm">
+          <h3 className="text-base font-semibold text-text-dark mb-4">Rate this app</h3>
           
           <div className="flex items-center gap-2 mb-4">
             {[1, 2, 3, 4, 5].map((star) => (
@@ -298,7 +298,10 @@ export default function AppDetailsPage() {
                 onClick={() => setReviewForm({ ...reviewForm, stars: star })}
                 className="focus:outline-none transition-transform hover:scale-110"
               >
-                <Star className={`w-8 h-8 ${star <= reviewForm.stars ? 'fill-primary text-primary' : 'text-gray-600'}`} />
+                <Star 
+                  strokeWidth={2}
+                  className={`w-8 h-8 ${star <= reviewForm.stars ? 'fill-yellow-400 text-yellow-400' : 'fill-white text-yellow-400'}`} 
+                />
               </button>
             ))}
           </div>
@@ -309,14 +312,14 @@ export default function AppDetailsPage() {
               placeholder="Your name (optional)"
               value={reviewForm.username}
               onChange={(e) => setReviewForm({ ...reviewForm, username: e.target.value })}
-              className="w-full bg-gray-900/50 border border-gray-700 rounded-xl px-4 py-3 text-text placeholder-gray-500 focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary transition-all"
+              className="w-full bg-background-darker border border-border rounded-xl px-4 py-3 text-text-dark placeholder-text-muted focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary transition-all shadow-inner"
             />
             <textarea
               placeholder="Describe your experience (optional)"
               value={reviewForm.comment}
               onChange={(e) => setReviewForm({ ...reviewForm, comment: e.target.value })}
               rows={3}
-              className="w-full bg-gray-900/50 border border-gray-700 rounded-xl px-4 py-3 text-text placeholder-gray-500 focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary transition-all resize-none"
+              className="w-full bg-background-darker border border-border rounded-xl px-4 py-3 text-text-dark placeholder-text-muted focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary transition-all resize-none shadow-inner"
             ></textarea>
             <div className="flex justify-end">
               <button
@@ -341,12 +344,12 @@ export default function AppDetailsPage() {
             {reviews.map((review: any) => (
               <div key={review._id} className="border-b border-gray-700/50 pb-6 last:border-0 last:pb-0">
                 <div className="flex items-start gap-4">
-                  <div className="w-10 h-10 rounded-full bg-gray-800 flex items-center justify-center shrink-0">
-                    <User className="w-5 h-5 text-gray-400" />
+                  <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center shrink-0">
+                    <User className="w-5 h-5 text-primary" />
                   </div>
                   <div className="flex-1">
                     <div className="flex items-center justify-between">
-                      <h4 className="font-semibold text-text">{review.username}</h4>
+                      <h4 className="font-semibold text-text-dark">{review.username}</h4>
                       <span className="text-xs text-text-muted">
                         {new Date(review.createdAt).toLocaleDateString()}
                       </span>
@@ -355,7 +358,8 @@ export default function AppDetailsPage() {
                       {[1, 2, 3, 4, 5].map((star) => (
                         <Star 
                           key={star} 
-                          className={`w-3.5 h-3.5 ${star <= review.stars ? 'fill-primary text-primary' : 'text-gray-700'}`} 
+                          strokeWidth={2}
+                          className={`w-3.5 h-3.5 ${star <= review.stars ? 'fill-yellow-400 text-yellow-400' : 'fill-white text-yellow-400'}`} 
                         />
                       ))}
                     </div>

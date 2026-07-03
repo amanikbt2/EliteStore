@@ -2,6 +2,8 @@ import { Request, Response } from 'express';
 import App from '../models/App';
 import Version from '../models/Version';
 import Category from '../models/Category';
+import Review from '../models/Review';
+import { imagekit } from '../config/imagekit';
 import { sendSuccess, sendError } from '../utils';
 
 export const getApps = async (req: Request, res: Response): Promise<void> => {
@@ -174,5 +176,64 @@ export const releaseUpdate = async (req: Request, res: Response): Promise<void> 
   } catch (error) {
     console.error('Error releasing update:', error);
     sendError(res, 'Error releasing update', 500);
+  }
+};
+
+const deleteFromImageKit = async (url: string) => {
+  try {
+    if (!url || !url.includes('ik.imagekit.io')) return;
+    const fileName = url.split('/').pop();
+    if (!fileName) return;
+    const cleanFileName = fileName.split('?')[0];
+    
+    const files = await imagekit.listFiles({ searchQuery: `name="${cleanFileName}"` });
+    if (files && files.length > 0) {
+      for (const file of files) {
+        await imagekit.deleteFile(file.fileId);
+      }
+    }
+  } catch (error) {
+    console.error(`Failed to delete ImageKit file for URL ${url}:`, error);
+  }
+};
+
+export const deleteApp = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const { packageName } = req.params;
+    const app = await App.findOne({ packageName });
+    
+    if (!app) {
+      sendError(res, 'App not found', 404);
+      return;
+    }
+
+    // Find all associated versions
+    const versions = await Version.find({ appId: app._id });
+    
+    // Delete APK files from ImageKit
+    for (const version of versions) {
+      if (version.apkUrl) {
+        await deleteFromImageKit(version.apkUrl);
+      }
+    }
+
+    // Delete App images from ImageKit
+    if (app.iconUrl) await deleteFromImageKit(app.iconUrl);
+    if (app.featureGraphicUrl) await deleteFromImageKit(app.featureGraphicUrl);
+    if (app.screenshots && app.screenshots.length > 0) {
+      for (const screenshot of app.screenshots) {
+        await deleteFromImageKit(screenshot);
+      }
+    }
+
+    // Delete from MongoDB
+    await Version.deleteMany({ appId: app._id });
+    await Review.deleteMany({ appId: app._id });
+    await App.deleteOne({ _id: app._id });
+
+    sendSuccess(res, null, 'App and all associated data deleted successfully');
+  } catch (error) {
+    console.error('Delete App Error:', error);
+    sendError(res, 'Error deleting app', 500);
   }
 };
