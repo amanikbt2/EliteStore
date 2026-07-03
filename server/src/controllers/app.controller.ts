@@ -120,7 +120,21 @@ export const createApp = async (req: Request, res: Response): Promise<void> => {
     sendSuccess(res, app, 'App created successfully');
   } catch (error: any) {
     console.error('Error creating app:', error);
-    sendError(res, `Error creating app: ${error.message || error.toString()}`, 500);
+    
+    if (error.code === 11000 && error.keyValue) {
+      const field = Object.keys(error.keyValue)[0];
+      const value = error.keyValue[field];
+      sendError(res, `An app with this ${field} ('${value}') already exists. Please use a unique ${field}.`, 400);
+      return;
+    }
+    
+    if (error.name === 'ValidationError') {
+      const messages = Object.values(error.errors).map((err: any) => err.message);
+      sendError(res, `Validation error: ${messages.join(', ')}`, 400);
+      return;
+    }
+
+    sendError(res, `Failed to publish app: ${error.message || 'Unknown server error'}`, 500);
   }
 };
 
