@@ -2,7 +2,7 @@ import { useState, useRef, useEffect } from 'react';
 import toast from 'react-hot-toast';
 import { 
   PlusCircle, Upload, LayoutGrid, Search, ArrowLeft, 
-  Send, History, UploadCloud, Bell, BarChart3, AppWindow, Star, Download
+  History, UploadCloud, BarChart3, AppWindow, Star, Download
 } from 'lucide-react';
 
 

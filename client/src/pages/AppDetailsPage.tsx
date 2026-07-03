@@ -1,5 +1,5 @@
 import { useParams, useNavigate } from 'react-router-dom';
-import { ArrowLeft, Star, Download, Shield, LayoutGrid, X, ChevronLeft, ChevronRight } from 'lucide-react';
+import { ArrowLeft, Star, Download, LayoutGrid, X, ChevronLeft, ChevronRight } from 'lucide-react';
 import { useState, useRef, useEffect, useCallback } from 'react';
 
 function formatAppName(packageName: string | undefined) {
