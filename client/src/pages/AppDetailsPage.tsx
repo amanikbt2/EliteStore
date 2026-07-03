@@ -1,5 +1,5 @@
 import { useParams, useNavigate } from 'react-router-dom';
-import { ArrowLeft, Star, Download, LayoutGrid, X, ChevronLeft, ChevronRight } from 'lucide-react';
+import { ArrowLeft, Star, Download, LayoutGrid, X, ChevronLeft, ChevronRight, Loader2 } from 'lucide-react';
 import { useState, useRef, useEffect, useCallback } from 'react';
 import { useQuery } from '@tanstack/react-query';
 
@@ -62,6 +62,16 @@ export default function AppDetailsPage() {
     }
   }, [fullscreenIndex, checkScroll]);
 
+  if (isLoading) {
+    return (
+      <div className="min-h-[80vh] flex flex-col items-center justify-center space-y-4">
+        <Loader2 className="w-12 h-12 text-primary animate-spin" />
+        <h2 className="text-xl font-semibold text-text">Loading app details...</h2>
+        <p className="text-text-muted">Please wait while we fetch the latest information</p>
+      </div>
+    );
+  }
+
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 sm:py-8">
       {/* Top Bar with Back Button */}
@@ -90,7 +100,6 @@ export default function AppDetailsPage() {
           <div className="flex-1 min-w-0">
             <h1 className="text-xl sm:text-3xl font-bold text-text truncate">{appName}</h1>
             <p className="text-primary mt-1 text-sm sm:text-base font-semibold truncate">{app?.developer || 'Developer'}</p>
-            <p className="text-text-muted mt-1 text-xs sm:text-sm truncate">{app?.packageName || packageName}</p>
           </div>
         </div>
 
@@ -120,17 +129,13 @@ export default function AppDetailsPage() {
 
         {/* Action Button */}
         <div className="mt-6">
-          {isLoading ? (
-            <div className="w-full bg-surface-dark text-center py-3 rounded-full font-bold text-base border border-gray-700 text-gray-400">Loading...</div>
-          ) : (
-            <a 
-              href={latestVersion?.apkUrl || '#'}
-              download
-              className="w-full bg-primary hover:bg-blue-600 text-white px-10 py-3 rounded-full font-bold text-base transition-all shadow-lg hover:shadow-primary/30 active:scale-[0.98] flex items-center justify-center cursor-pointer"
-            >
-              Install
-            </a>
-          )}
+          <a 
+            href={latestVersion?.apkUrl || '#'}
+            download
+            className="w-full bg-primary hover:bg-blue-600 text-white px-10 py-3 rounded-full font-bold text-base transition-all shadow-lg hover:shadow-primary/30 active:scale-[0.98] flex items-center justify-center cursor-pointer"
+          >
+            Install
+          </a>
         </div>
       </div>
 
