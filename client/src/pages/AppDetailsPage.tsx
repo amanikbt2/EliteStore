@@ -36,7 +36,7 @@ export default function AppDetailsPage() {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   
-  const { data, isLoading } = useQuery({
+  const { data, isLoading, error, refetch, isRefetching } = useQuery({
     queryKey: ['app', packageName],
     queryFn: async () => {
       const apiUrl = import.meta.env.VITE_API_URL || 'http://127.0.0.1:5000';
@@ -44,7 +44,9 @@ export default function AppDetailsPage() {
       if (!res.ok) throw new Error('Failed to fetch app');
       return res.json();
     },
-    enabled: !!packageName
+    enabled: !!packageName,
+    retry: 3,
+    retryDelay: 1000
   });
   
   const appResponse = data?.data;
@@ -123,12 +125,30 @@ export default function AppDetailsPage() {
     }
   }, [fullscreenIndex, checkScroll]);
 
-  if (isLoading) {
+  if (isLoading || isRefetching) {
     return (
       <div className="min-h-[80vh] flex flex-col items-center justify-center space-y-4">
         <Loader2 className="w-12 h-12 text-primary animate-spin" />
         <h2 className="text-xl font-semibold text-text">Loading app details...</h2>
         <p className="text-text-muted">Please wait while we fetch the latest information</p>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="min-h-[80vh] flex flex-col items-center justify-center p-4">
+        <div className="bg-red-500/10 border border-red-500/50 rounded-2xl p-8 max-w-md w-full text-center flex flex-col items-center">
+          <h2 className="text-xl font-bold text-red-500 mb-3">Network Error</h2>
+          <p className="text-red-400/80 mb-6">We couldn't load the app details. Please check your connection and try again.</p>
+          <button 
+            onClick={() => refetch()}
+            disabled={isRefetching}
+            className="bg-red-500 hover:bg-red-600 text-white px-8 py-3 rounded-full font-bold transition-all disabled:opacity-50"
+          >
+            {isRefetching ? 'Retrying...' : 'Reload App'}
+          </button>
+        </div>
       </div>
     );
   }
