@@ -140,23 +140,41 @@ export default function AppDetailsPage() {
       </div>
 
       {/* Screenshots Section */}
-      <div className="mt-10">
-        <div className="flex items-center justify-between mb-4">
-          <h2 className="text-xl font-bold text-text">Preview</h2>
+      {(app?.screenshots && app.screenshots.length > 0) ? (
+        <div className="mt-10">
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="text-xl font-bold text-text">Preview</h2>
+          </div>
+          <div className="flex overflow-x-auto gap-4 pb-4 snap-x snap-mandatory" style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}>
+            {app.screenshots.map((url: string, index: number) => (
+              <div 
+                key={index}
+                onClick={() => setFullscreenIndex(index)}
+                className="w-44 h-72 sm:w-64 sm:h-[400px] shrink-0 snap-center shadow-lg rounded-2xl overflow-hidden cursor-pointer hover:ring-2 hover:ring-primary transition-all"
+              >
+                <img src={url} alt={`Screenshot ${index + 1}`} className="w-full h-full object-cover" />
+              </div>
+            ))}
+          </div>
         </div>
-        <div className="flex overflow-x-auto gap-4 pb-4 snap-x snap-mandatory" style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}>
-          {[0, 1, 2, 3, 4].map((index) => (
-            <div 
-              key={index}
-              onClick={() => setFullscreenIndex(index)}
-              className="w-44 h-72 sm:w-64 sm:h-[400px] bg-gradient-to-b from-gray-800 to-gray-900 rounded-2xl shrink-0 snap-center shadow-lg border border-gray-700/50 relative overflow-hidden cursor-pointer hover:ring-2 hover:ring-primary transition-all"
-            >
-              <div className="absolute top-4 left-4 right-4 h-6 bg-gray-700/50 rounded-full"></div>
-              <div className="absolute top-14 left-4 right-4 bottom-4 bg-gray-700/30 rounded-xl"></div>
-            </div>
-          ))}
+      ) : (
+        <div className="mt-10">
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="text-xl font-bold text-text">Preview</h2>
+          </div>
+          <div className="flex overflow-x-auto gap-4 pb-4 snap-x snap-mandatory" style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}>
+            {[0, 1, 2, 3, 4].map((index) => (
+              <div 
+                key={index}
+                className="w-44 h-72 sm:w-64 sm:h-[400px] bg-gradient-to-b from-gray-800 to-gray-900 rounded-2xl shrink-0 snap-center shadow-lg border border-gray-700/50 relative overflow-hidden"
+              >
+                <div className="absolute top-4 left-4 right-4 h-6 bg-gray-700/50 rounded-full"></div>
+                <div className="absolute top-14 left-4 right-4 bottom-4 bg-gray-700/30 rounded-xl"></div>
+              </div>
+            ))}
+          </div>
         </div>
-      </div>
+      )}
       
       {/* About Section */}
       <div className="mt-8 bg-surface-dark p-6 rounded-3xl shadow-xl border border-gray-100/5 mb-10">
@@ -199,17 +217,30 @@ export default function AppDetailsPage() {
               className="w-full flex overflow-x-auto snap-x snap-mandatory items-center pb-8 h-full" 
               style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
             >
-              {[0, 1, 2, 3, 4].map((index) => (
-                <div 
-                  key={index} 
-                  className="w-full h-[70vh] sm:h-[80vh] shrink-0 snap-center flex justify-center items-center p-6"
-                >
-                  <div className="w-full max-w-[320px] sm:max-w-md h-full bg-gradient-to-b from-gray-800 to-gray-900 rounded-3xl shadow-2xl border border-gray-700/50 relative overflow-hidden">
-                    <div className="absolute top-6 left-6 right-6 h-8 bg-gray-700/50 rounded-full"></div>
-                    <div className="absolute top-20 left-6 right-6 bottom-6 bg-gray-700/30 rounded-2xl"></div>
+              {(app?.screenshots && app.screenshots.length > 0) ? (
+                app.screenshots.map((url: string, index: number) => (
+                  <div 
+                    key={index} 
+                    className="w-full h-[70vh] sm:h-[80vh] shrink-0 snap-center flex justify-center items-center p-6"
+                  >
+                    <div className="w-full max-w-[320px] sm:max-w-md h-full shadow-2xl rounded-3xl overflow-hidden bg-black/50">
+                      <img src={url} alt={`Screenshot ${index + 1}`} className="w-full h-full object-contain" />
+                    </div>
                   </div>
-                </div>
-              ))}
+                ))
+              ) : (
+                [0, 1, 2, 3, 4].map((index) => (
+                  <div 
+                    key={index} 
+                    className="w-full h-[70vh] sm:h-[80vh] shrink-0 snap-center flex justify-center items-center p-6"
+                  >
+                    <div className="w-full max-w-[320px] sm:max-w-md h-full bg-gradient-to-b from-gray-800 to-gray-900 rounded-3xl shadow-2xl border border-gray-700/50 relative overflow-hidden">
+                      <div className="absolute top-6 left-6 right-6 h-8 bg-gray-700/50 rounded-full"></div>
+                      <div className="absolute top-20 left-6 right-6 bottom-6 bg-gray-700/30 rounded-2xl"></div>
+                    </div>
+                  </div>
+                ))
+              )}
             </div>
 
             {/* Right Navigation Arrow */}
