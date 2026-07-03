@@ -2,14 +2,16 @@ import { useQuery } from '@tanstack/react-query';
 import { Link } from 'react-router-dom';
 
 export default function HomePage() {
-  const { data, isLoading, error } = useQuery({
+  const { data, isLoading, error, refetch, isRefetching } = useQuery({
     queryKey: ['apps'],
     queryFn: async () => {
       const apiUrl = import.meta.env.VITE_API_URL || 'http://127.0.0.1:5000';
       const res = await fetch(`${apiUrl}/api/apps`);
       if (!res.ok) throw new Error('Failed to fetch apps');
       return res.json();
-    }
+    },
+    retry: 3,
+    retryDelay: 1000
   });
 
   const apps = data?.data?.apps || [];
@@ -27,8 +29,20 @@ export default function HomePage() {
       
       <section>
         <h2 className="text-2xl font-semibold mb-6">Featured Apps</h2>
-        {isLoading && <p>Loading apps...</p>}
-        {error && <p className="text-red-500">Error loading apps.</p>}
+        {(isLoading || isRefetching) && !error && <p>Loading apps...</p>}
+        {error && (
+          <div className="bg-red-500/10 border border-red-500/50 rounded-xl p-6 flex flex-col items-center justify-center text-center mb-8">
+            <p className="text-red-500 font-semibold mb-2">Network Error: Unable to load apps.</p>
+            <p className="text-red-400/80 text-sm mb-4">Please check your connection and try again.</p>
+            <button 
+              onClick={() => refetch()}
+              disabled={isRefetching}
+              className="bg-red-500 hover:bg-red-600 text-white px-6 py-2 rounded-full font-medium transition-colors disabled:opacity-50"
+            >
+              {isRefetching ? 'Retrying...' : 'Reload Apps'}
+            </button>
+          </div>
+        )}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
           {apps.map((app: any) => (
             <Link to={`/app/${app.packageName}`} key={app.packageName} className="block bg-surface-dark p-4 rounded-xl hover:ring-2 hover:ring-primary transition-all cursor-pointer shadow-lg shadow-black/5">

@@ -1,7 +1,8 @@
 import { useParams, useNavigate } from 'react-router-dom';
-import { ArrowLeft, Star, Download, LayoutGrid, X, ChevronLeft, ChevronRight, Loader2, Send, User } from 'lucide-react';
+import { ArrowLeft, Star, Download, LayoutGrid, X, ChevronLeft, ChevronRight, Loader2, Send, User, Copy, Check } from 'lucide-react';
 import { useState, useRef, useEffect, useCallback } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import toast from 'react-hot-toast';
 
 function formatAppName(packageName: string | undefined) {
   if (!packageName) return 'App Name';
@@ -55,6 +56,7 @@ export default function AppDetailsPage() {
   const scrollRef = useRef<HTMLDivElement>(null);
   const [canScrollLeft, setCanScrollLeft] = useState(false);
   const [canScrollRight, setCanScrollRight] = useState(true);
+  const [copiedLink, setCopiedLink] = useState(false);
 
   const { data: reviewsData, isLoading: isLoadingReviews } = useQuery({
     queryKey: ['reviews', packageName],
@@ -158,7 +160,22 @@ export default function AppDetailsPage() {
           
           <div className="flex-1 min-w-0">
             <h1 className="text-xl sm:text-3xl font-bold text-text truncate">{appName}</h1>
-            <p className="text-primary mt-1 text-sm sm:text-base font-semibold truncate">{app?.developer || 'Developer'}</p>
+            <div className="flex items-center gap-3 mt-1">
+              <p className="text-primary text-sm sm:text-base font-semibold truncate">{app?.developer || 'Developer'}</p>
+              <button 
+                onClick={() => {
+                  const url = window.location.href;
+                  navigator.clipboard.writeText(url);
+                  setCopiedLink(true);
+                  toast.success('App link copied!');
+                  setTimeout(() => setCopiedLink(false), 2000);
+                }}
+                className="flex items-center gap-1.5 px-2 py-1 bg-surface-dark border border-gray-700 hover:bg-gray-800 text-gray-400 hover:text-text rounded-md transition-all text-xs cursor-pointer"
+              >
+                {copiedLink ? <Check className="w-3.5 h-3.5 text-green-500" /> : <Copy className="w-3.5 h-3.5" />}
+                <span>{copiedLink ? 'Copied!' : 'Copy Link'}</span>
+              </button>
+            </div>
           </div>
         </div>
 

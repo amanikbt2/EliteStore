@@ -14,7 +14,7 @@ export const getReviews = async (req: Request, res: Response): Promise<void> => 
       return;
     }
 
-    const query = { appId: app._id, status: 'approved' };
+    const query = { appId: app._id, status: 'approved' as const };
     
     const reviews = await Review.find(query)
       .sort({ createdAt: -1 })
