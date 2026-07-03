@@ -81,6 +81,10 @@ export default function AdminDashboard() {
       toast.loading('Uploading APK...', { id: toastId });
       const apkFormData = new FormData();
       apkFormData.append('file', apkFile);
+      apkFormData.append('appName', appName);
+      apkFormData.append('packageName', packageName);
+      apkFormData.append('versionName', '1.0.0');
+      
       const apkRes = await fetch(`${apiUrl}/api/upload/apk`, { 
         method: 'POST', 
         headers: { 'Authorization': `Bearer ${token}` },
@@ -160,6 +164,10 @@ export default function AdminDashboard() {
       
       const apkFormData = new FormData();
       apkFormData.append('file', updateApkFile);
+      apkFormData.append('appName', selectedApp.name);
+      apkFormData.append('packageName', selectedApp.packageName);
+      apkFormData.append('versionName', updateVersion);
+      
       const apkRes = await fetch(`${apiUrl}/api/upload/apk`, { 
         method: 'POST', 
         headers: { 'Authorization': `Bearer ${token}` },
@@ -204,6 +212,23 @@ export default function AdminDashboard() {
       toast.error(error.message || 'Error releasing update', { id: toastId });
     } finally {
       setIsPublishing(false);
+    }
+  };
+
+  const handleSelectApp = async (app: any) => {
+    // Optimistically set it so UI transitions immediately
+    setSelectedApp(app);
+    
+    try {
+      const apiUrl = import.meta.env.VITE_API_URL || 'http://127.0.0.1:5000';
+      const res = await fetch(`${apiUrl}/api/apps/${app.packageName}`);
+      const data = await res.json();
+      if (data.success && data.data.app) {
+        // Update with full details including version history
+        setSelectedApp(data.data.app);
+      }
+    } catch (e) {
+      console.error('Failed to fetch full app details', e);
     }
   };
 
@@ -265,7 +290,7 @@ export default function AdminDashboard() {
         ) : apps.map(app => (
           <div 
             key={app._id || app.id} 
-            onClick={() => setSelectedApp(app)}
+            onClick={() => handleSelectApp(app)}
             className="bg-surface-dark rounded-2xl p-5 border border-gray-100/5 shadow-lg hover:shadow-xl hover:border-gray-700/50 transition-all cursor-pointer group"
           >
             <div className="flex items-start gap-4">
@@ -274,7 +299,7 @@ export default function AdminDashboard() {
               </div>
               <div className="flex-1 min-w-0">
                 <h3 className="font-bold text-lg text-text truncate group-hover:text-primary transition-colors">{app.name}</h3>
-                <p className="text-sm text-text-muted truncate mb-2">{app.packageName}</p>
+                <p className="text-sm text-text-muted truncate mb-2">{app.developer}</p>
                 
                 <div className="flex items-center gap-3 text-xs font-medium text-gray-400">
                   <span className="flex items-center gap-1"><Star className="w-3.5 h-3.5 text-yellow-500 fill-yellow-500" /> {app.rating || 0}</span>
@@ -431,7 +456,7 @@ export default function AdminDashboard() {
         </div>
         <div>
           <h2 className="text-2xl font-bold text-text">{selectedApp?.name}</h2>
-          <p className="text-text-muted mt-1">{selectedApp?.packageName}</p>
+          <p className="text-text-muted mt-1">{selectedApp?.developer}</p>
           <div className="flex items-center gap-4 mt-2 text-sm">
             <span className="px-2 py-1 bg-green-500/10 text-green-400 rounded-md font-semibold">Published</span>
             <span className="text-gray-400">{selectedApp?.downloads} Downloads</span>

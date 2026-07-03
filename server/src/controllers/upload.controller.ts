@@ -35,9 +35,17 @@ export const uploadApk = async (req: Request, res: Response): Promise<void> => {
     hash.update(req.file.buffer);
     const checksum = hash.digest('hex');
 
+    const { appName, packageName, versionName } = req.body;
+    let fileName = `apk_${Date.now()}_${req.file.originalname}`;
+    
+    if (appName && packageName && versionName) {
+      const cleanName = appName.replace(/[^a-zA-Z0-9]/g, '_');
+      fileName = `${cleanName}_${packageName}_v${versionName}.apk`;
+    }
+
     const result = await imagekit.upload({
       file: req.file.buffer,
-      fileName: `apk_${Date.now()}_${req.file.originalname}`,
+      fileName,
       folder: '/elitestore/apks'
     });
 

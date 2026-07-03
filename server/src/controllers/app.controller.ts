@@ -42,9 +42,13 @@ export const getAppByPackageName = async (req: Request, res: Response): Promise<
       return;
     }
 
-    const latestVersion = await Version.findOne({ appId: app._id, status: 'active' }).sort({ versionCode: -1 });
+    const versions = await Version.find({ appId: app._id, status: 'active' }).sort({ versionCode: -1 });
+    const latestVersion = versions.length > 0 ? versions[0] : null;
     
-    sendSuccess(res, { app, latestVersion }, 'App fetched');
+    // Attach versions to the app object for the frontend
+    const appData = { ...app.toObject(), versions };
+    
+    sendSuccess(res, { app: appData, latestVersion }, 'App fetched');
   } catch (error) {
     sendError(res, 'Error fetching app', 500);
   }
