@@ -118,9 +118,9 @@ export const createApp = async (req: Request, res: Response): Promise<void> => {
     await version.save();
 
     sendSuccess(res, app, 'App created successfully');
-  } catch (error) {
+  } catch (error: any) {
     console.error('Error creating app:', error);
-    sendError(res, 'Error creating app', 500);
+    sendError(res, `Error creating app: ${error.message || error.toString()}`, 500);
   }
 };
 

@@ -8,7 +8,7 @@ export default function Navbar() {
         <div className="flex justify-between items-center h-16">
           <div className="flex items-center">
             <Link to="/" className="text-2xl font-bold text-primary flex items-center gap-2">
-              <span className="bg-primary text-white p-1 rounded-md text-sm">E</span>
+              <img src="/logo.png" alt="EliteStore Logo" className="w-8 h-8 rounded-md" />
               EliteStore
             </Link>
           </div>

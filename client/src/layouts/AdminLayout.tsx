@@ -19,7 +19,10 @@ export default function AdminLayout() {
   return (
     <div className="min-h-screen bg-surface-dark flex flex-col">
       <header className="bg-background-darker p-4 shadow-md flex justify-between items-center">
-        <h1 className="text-xl font-bold text-primary">EliteStore Admin</h1>
+        <div className="flex items-center gap-2">
+          <img src="/logo.png" alt="EliteStore Logo" className="w-8 h-8 rounded-md" />
+          <h1 className="text-xl font-bold text-primary">EliteStore Admin</h1>
+        </div>
         <button 
           onClick={handleLogout}
           className="text-sm font-medium text-gray-400 hover:text-red-400 transition-colors"
