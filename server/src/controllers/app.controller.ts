@@ -84,7 +84,7 @@ export const checkUpdate = async (req: Request, res: Response): Promise<void> =>
 
 export const createApp = async (req: Request, res: Response): Promise<void> => {
   try {
-    const { name, packageName, developer, description, iconUrl, apkUrl, apkSize, screenshots, size } = req.body;
+    const { name, packageName, developer, description, iconUrl, apkUrl, apkSize, checksum, screenshots, size } = req.body;
     
     // Temporary fallback category if not provided from frontend
     let category = await Category.findOne();
@@ -111,6 +111,7 @@ export const createApp = async (req: Request, res: Response): Promise<void> => {
       versionCode: 1,
       apkUrl,
       fileSize: apkSize || 0,
+      sha256Checksum: checksum || 'unknown',
       releaseNotes: 'Initial release',
       status: 'active'
     });
@@ -141,7 +142,7 @@ export const createApp = async (req: Request, res: Response): Promise<void> => {
 export const releaseUpdate = async (req: Request, res: Response): Promise<void> => {
   try {
     const { packageName } = req.params;
-    const { versionName, releaseNotes, apkUrl, apkSize } = req.body;
+    const { versionName, releaseNotes, apkUrl, apkSize, checksum } = req.body;
     
     const app = await App.findOne({ packageName });
     if (!app) {
@@ -158,6 +159,7 @@ export const releaseUpdate = async (req: Request, res: Response): Promise<void> 
       versionCode: nextCode,
       apkUrl,
       fileSize: apkSize || 0,
+      sha256Checksum: checksum || 'unknown',
       releaseNotes,
       status: 'active'
     });

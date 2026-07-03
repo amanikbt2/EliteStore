@@ -122,13 +122,14 @@ export default function AdminDashboard() {
           iconUrl: iconData.data.url,
           apkUrl: apkData.data.url,
           apkSize: apkData.data.fileSize,
+          checksum: apkData.data.checksum,
           size: appSize,
           screenshots: uploadedScreenshots
         })
       });
 
       const appResult = await appRes.json();
-      if (!appResult.success) throw new Error(appResult.error || 'Failed to publish app');
+      if (!appResult.success) throw new Error(appResult.message || appResult.error || 'Failed to publish app');
 
       toast.success('App published successfully!', { id: toastId });
       setIsPublishingNew(false);
@@ -178,7 +179,8 @@ export default function AdminDashboard() {
           versionName: updateVersion,
           releaseNotes: updateNotes,
           apkUrl: apkData.data.url,
-          apkSize: apkData.data.fileSize
+          apkSize: apkData.data.fileSize,
+          checksum: apkData.data.checksum
         })
       });
 
