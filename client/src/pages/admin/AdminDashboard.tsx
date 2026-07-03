@@ -39,7 +39,8 @@ export default function AdminDashboard() {
 
   const fetchApps = async () => {
     try {
-      const res = await fetch('/api/apps');
+      const apiUrl = import.meta.env.VITE_API_URL || 'http://127.0.0.1:5000';
+      const res = await fetch(`${apiUrl}/api/apps`);
       const data = await res.json();
       if (data.success) {
         setApps(data.data.apps || []);
@@ -59,10 +60,12 @@ export default function AdminDashboard() {
     const toastId = toast.loading('Uploading files...');
 
     try {
+      const apiUrl = import.meta.env.VITE_API_URL || 'http://127.0.0.1:5000';
+      
       // 1. Upload Icon
       const iconFormData = new FormData();
       iconFormData.append('file', iconFile);
-      const iconRes = await fetch('/api/upload/image', { method: 'POST', body: iconFormData });
+      const iconRes = await fetch(`${apiUrl}/api/upload/image`, { method: 'POST', body: iconFormData });
       const iconData = await iconRes.json();
       if (!iconData.success) throw new Error('Icon upload failed');
 
@@ -70,7 +73,7 @@ export default function AdminDashboard() {
       toast.loading('Uploading APK...', { id: toastId });
       const apkFormData = new FormData();
       apkFormData.append('file', apkFile);
-      const apkRes = await fetch('/api/upload/apk', { method: 'POST', body: apkFormData });
+      const apkRes = await fetch(`${apiUrl}/api/upload/apk`, { method: 'POST', body: apkFormData });
       const apkData = await apkRes.json();
       if (!apkData.success) throw new Error('APK upload failed');
 
@@ -81,7 +84,7 @@ export default function AdminDashboard() {
         for (let i = 0; i < screenshotFiles.length; i++) {
           const ssFormData = new FormData();
           ssFormData.append('file', screenshotFiles[i]);
-          const ssRes = await fetch('/api/upload/image', { method: 'POST', body: ssFormData });
+          const ssRes = await fetch(`${apiUrl}/api/upload/image`, { method: 'POST', body: ssFormData });
           const ssData = await ssRes.json();
           if (ssData.success) uploadedScreenshots.push(ssData.data.url);
         }
@@ -89,7 +92,7 @@ export default function AdminDashboard() {
 
       // 4. Save App to MongoDB
       toast.loading('Publishing App...', { id: toastId });
-      const appRes = await fetch('/api/apps', {
+      const appRes = await fetch(`${apiUrl}/api/apps`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -132,14 +135,16 @@ export default function AdminDashboard() {
     const toastId = toast.loading('Uploading new APK...');
 
     try {
+      const apiUrl = import.meta.env.VITE_API_URL || 'http://127.0.0.1:5000';
+      
       const apkFormData = new FormData();
       apkFormData.append('file', updateApkFile);
-      const apkRes = await fetch('/api/upload/apk', { method: 'POST', body: apkFormData });
+      const apkRes = await fetch(`${apiUrl}/api/upload/apk`, { method: 'POST', body: apkFormData });
       const apkData = await apkRes.json();
       if (!apkData.success) throw new Error('APK upload failed');
 
       toast.loading('Publishing Update...', { id: toastId });
-      const updateRes = await fetch(`/api/apps/${selectedApp.packageName}/update`, {
+      const updateRes = await fetch(`${apiUrl}/api/apps/${selectedApp.packageName}/update`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -157,7 +162,7 @@ export default function AdminDashboard() {
       
       // Fetch latest app info and update selected app (to refresh version history)
       fetchApps();
-      const updatedAppRes = await fetch(`/api/apps/${selectedApp.packageName}`);
+      const updatedAppRes = await fetch(`${apiUrl}/api/apps/${selectedApp.packageName}`);
       const updatedApp = await updatedAppRes.json();
       if (updatedApp.success) {
         // Just mocking the refresh of version history structure based on previous mock for simplicity in UI update, 
