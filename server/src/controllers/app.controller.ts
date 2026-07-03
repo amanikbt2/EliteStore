@@ -239,3 +239,24 @@ export const deleteApp = async (req: Request, res: Response): Promise<void> => {
     sendError(res, 'Error deleting app', 500);
   }
 };
+
+export const incrementDownloads = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const { packageName } = req.params;
+    const app = await App.findOneAndUpdate(
+      { packageName },
+      { $inc: { downloads: 1 } },
+      { new: true }
+    );
+
+    if (!app) {
+      sendError(res, 'App not found', 404);
+      return;
+    }
+
+    sendSuccess(res, { downloads: app.downloads }, 'Downloads incremented');
+  } catch (error) {
+    console.error('Increment Downloads Error:', error);
+    sendError(res, 'Error incrementing downloads', 500);
+  }
+};

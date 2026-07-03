@@ -265,7 +265,11 @@ export default function AppDetailsPage() {
         <div className="mt-6">
           <a 
             href={latestVersion?.apkUrl || '#'}
-            onClick={() => trackEvent('install_app')}
+            onClick={() => {
+              trackEvent('install_app');
+              const apiUrl = import.meta.env.VITE_API_URL || 'http://127.0.0.1:5000';
+              fetch(`${apiUrl}/api/apps/${packageName}/download`, { method: 'POST' }).catch(() => {});
+            }}
             download={`${appName}.apk`}
             className="w-full bg-primary hover:bg-blue-600 text-white px-10 py-3 rounded-full font-bold text-base transition-all shadow-lg hover:shadow-primary/30 active:scale-[0.98] flex items-center justify-center cursor-pointer"
           >
