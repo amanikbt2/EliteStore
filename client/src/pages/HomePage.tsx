@@ -5,7 +5,8 @@ export default function HomePage() {
   const { data, isLoading, error } = useQuery({
     queryKey: ['apps'],
     queryFn: async () => {
-      const res = await fetch('http://127.0.0.1:5000/api/apps');
+      const apiUrl = import.meta.env.VITE_API_URL || 'http://127.0.0.1:5000';
+      const res = await fetch(`${apiUrl}/api/apps`);
       if (!res.ok) throw new Error('Failed to fetch apps');
       return res.json();
     }
