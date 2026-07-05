@@ -2,6 +2,7 @@ import { Request, Response } from "express";
 import { imagekit } from "../config/imagekit";
 import { sendSuccess, sendError } from "../utils";
 import crypto from "crypto";
+import fetch from "node-fetch";
 
 export const uploadImage = async (
   req: Request,
@@ -37,7 +38,6 @@ export const uploadApk = async (req: Request, res: Response): Promise<void> => {
       return;
     }
 
-    // Calculate SHA256 checksum
     const hash = crypto.createHash("sha256");
     hash.update(req.file.buffer);
     const checksum = hash.digest("hex");
@@ -50,30 +50,67 @@ export const uploadApk = async (req: Request, res: Response): Promise<void> => {
       fileName = `${cleanName}_${packageName}_v${versionName}.apk`;
     }
 
-    const existingFilesResponse = await imagekit.listFiles({
-      folder: "/elitestore/apks",
-      limit: 100,
-    } as any);
-    const existingFiles = Array.isArray(existingFilesResponse)
-      ? existingFilesResponse
-      : (existingFilesResponse as any)?.data || [];
+    const githubToken = process.env.GITHUB_TOKEN;
+    const githubOwner = process.env.GITHUB_OWNER;
+    const githubRepo = process.env.GITHUB_REPO;
 
-    const normalizedExpectedName = fileName.toLowerCase();
-    const existingFile = existingFiles.find((file: any) => {
-      const existingName = (file?.name || "").toLowerCase();
-      return [
-        normalizedExpectedName,
-        normalizedExpectedName.replace(/\.apk$/i, ""),
-        `${normalizedExpectedName.replace(/\.apk$/i, "")}.apk`,
-      ].includes(existingName);
-    }) as any;
+    if (!githubToken || !githubOwner || !githubRepo) {
+      sendError(res, "GitHub upload not configured", 500);
+      return;
+    }
 
-    if (existingFile?.url) {
+    const releaseTag = process.env.GITHUB_RELEASE_TAG || "latest";
+    const releaseApiUrl = `https://api.github.com/repos/${githubOwner}/${githubRepo}/releases/tags/${releaseTag}`;
+
+    let release: any;
+    const releaseRes = await fetch(releaseApiUrl, {
+      method: "GET",
+      headers: {
+        Authorization: `token ${githubToken}`,
+        Accept: "application/vnd.github+json",
+      },
+    });
+
+    if (releaseRes.ok) {
+      release = await releaseRes.json();
+    } else if (releaseRes.status === 404) {
+      const createReleaseRes = await fetch(
+        `https://api.github.com/repos/${githubOwner}/${githubRepo}/releases`,
+        {
+          method: "POST",
+          headers: {
+            Authorization: `token ${githubToken}`,
+            Accept: "application/vnd.github+json",
+          },
+          body: JSON.stringify({
+            tag_name: releaseTag,
+            name: `Release ${releaseTag}`,
+            draft: false,
+            prerelease: false,
+          }),
+        },
+      );
+
+      if (!createReleaseRes.ok) {
+        throw new Error("Failed to create GitHub release");
+      }
+      release = await createReleaseRes.json();
+    } else {
+      throw new Error("Failed to access GitHub release");
+    }
+
+    const assetName = fileName;
+    const existingAssets = release.assets || [];
+    const existingAsset = existingAssets.find(
+      (asset: any) => asset.name === assetName,
+    );
+
+    if (existingAsset?.browser_download_url) {
       sendSuccess(
         res,
         {
-          url: existingFile.url,
-          fileId: existingFile.fileId,
+          url: existingAsset.browser_download_url,
+          fileId: existingAsset.id,
           fileSize: req.file.size,
           checksum,
           skippedUpload: true,
@@ -83,26 +120,36 @@ export const uploadApk = async (req: Request, res: Response): Promise<void> => {
       return;
     }
 
-    const result = await imagekit.upload({
-      file: req.file.buffer,
-      fileName,
-      folder: "/elitestore/apks",
-      useUniqueFileName: false,
+    const uploadUrl = `https://uploads.github.com/repos/${githubOwner}/${githubRepo}/releases/${release.id}/assets?name=${encodeURIComponent(assetName)}`;
+    const uploadRes = await fetch(uploadUrl, {
+      method: "POST",
+      headers: {
+        Authorization: `token ${githubToken}`,
+        Accept: "application/vnd.github+json",
+        "Content-Type": "application/vnd.android.package-archive",
+      },
+      body: req.file.buffer,
     });
+
+    if (!uploadRes.ok) {
+      throw new Error("Failed to upload APK to GitHub release");
+    }
+
+    const uploadedAsset = await uploadRes.json();
 
     sendSuccess(
       res,
       {
-        url: result.url,
-        fileId: result.fileId,
+        url: uploadedAsset.browser_download_url,
+        fileId: uploadedAsset.id,
         fileSize: req.file.size,
         checksum,
         skippedUpload: false,
       },
-      "APK uploaded",
+      "APK uploaded to GitHub release",
     );
   } catch (error) {
-    console.error("ImageKit APK Upload Error:", error);
+    console.error("GitHub APK Upload Error:", error);
     sendError(res, "APK upload failed", 500);
   }
 };
