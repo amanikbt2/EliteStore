@@ -159,7 +159,18 @@ export const createApp = async (req: Request, res: Response): Promise<void> => {
 export const releaseUpdate = async (req: Request, res: Response): Promise<void> => {
   try {
     const { packageName } = req.params;
-    const { versionName, releaseNotes, apkUrl, apkSize, checksum } = req.body;
+    const { 
+      versionName, 
+      releaseNotes, 
+      apkUrl, 
+      apkSize, 
+      checksum,
+      name,
+      developer,
+      description,
+      iconUrl,
+      screenshots
+    } = req.body;
     
     const app = await App.findOne({ packageName });
     if (!app) {
@@ -193,6 +204,30 @@ export const releaseUpdate = async (req: Request, res: Response): Promise<void> 
       }
       await Version.deleteOne({ _id: old._id });
     }
+
+    // Update app metadata if updated
+    if (name) app.name = name;
+    if (developer) app.developer = developer;
+    if (description) {
+      app.description = description;
+      app.shortDescription = description.substring(0, 150) + '...';
+    }
+    if (iconUrl) {
+      if (app.iconUrl && app.iconUrl !== iconUrl) {
+        await deleteFromImageKit(app.iconUrl);
+      }
+      app.iconUrl = iconUrl;
+    }
+    if (screenshots && screenshots.length > 0) {
+      if (app.screenshots && app.screenshots.length > 0) {
+        for (const oldSs of app.screenshots) {
+          await deleteFromImageKit(oldSs);
+        }
+      }
+      app.screenshots = screenshots;
+    }
+
+    await app.save();
 
     sendSuccess(res, version, 'Update released successfully');
   } catch (error) {

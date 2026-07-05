@@ -36,7 +36,12 @@ export default function AdminDashboard() {
   const [updateVersion, setUpdateVersion] = useState('');
   const [updateNotes, setUpdateNotes] = useState('');
   const [updateApkFile, setUpdateApkFile] = useState<File | null>(null);
+  const [updateIconFile, setUpdateIconFile] = useState<File | null>(null);
+  const [updateScreenshotFiles, setUpdateScreenshotFiles] = useState<FileList | null>(null);
+  const [updateDescription, setUpdateDescription] = useState('');
   const updateApkInputRef = useRef<HTMLInputElement>(null);
+  const updateIconInputRef = useRef<HTMLInputElement>(null);
+  const updateScreenshotsInputRef = useRef<HTMLInputElement>(null);
   const [isTogglingDownload, setIsTogglingDownload] = useState(false);
 
   useEffect(() => {
@@ -232,12 +237,12 @@ export default function AdminDashboard() {
       const apiUrl = import.meta.env.VITE_API_URL || 'http://127.0.0.1:5000';
       const token = localStorage.getItem('adminToken');
       
+      // 1. Upload new APK
       const apkFormData = new FormData();
       apkFormData.append('file', updateApkFile);
       apkFormData.append('appName', selectedApp.name);
       apkFormData.append('packageName', selectedApp.packageName);
       apkFormData.append('versionName', updateVersion);
-      
       const apkRes = await fetch(`${apiUrl}/api/upload/apk`, { 
         method: 'POST', 
         headers: { 'Authorization': `Bearer ${token}` },
@@ -246,6 +251,39 @@ export default function AdminDashboard() {
       const apkData = await apkRes.json();
       if (!apkData.success) throw new Error('APK upload failed');
 
+      // 2. Upload new Icon if provided
+      let newIconUrl: string | undefined;
+      if (updateIconFile) {
+        toast.loading('Uploading icon...', { id: toastId });
+        const iconFormData = new FormData();
+        iconFormData.append('file', updateIconFile);
+        const iconRes = await fetch(`${apiUrl}/api/upload/image`, {
+          method: 'POST',
+          headers: { 'Authorization': `Bearer ${token}` },
+          body: iconFormData
+        });
+        const iconData = await iconRes.json();
+        if (iconData.success) newIconUrl = iconData.data.url;
+      }
+
+      // 3. Upload new Screenshots if provided
+      const newScreenshots: string[] = [];
+      if (updateScreenshotFiles && updateScreenshotFiles.length > 0) {
+        toast.loading('Uploading screenshots...', { id: toastId });
+        for (let i = 0; i < updateScreenshotFiles.length; i++) {
+          const ssFormData = new FormData();
+          ssFormData.append('file', updateScreenshotFiles[i]);
+          const ssRes = await fetch(`${apiUrl}/api/upload/image`, {
+            method: 'POST',
+            headers: { 'Authorization': `Bearer ${token}` },
+            body: ssFormData
+          });
+          const ssData = await ssRes.json();
+          if (ssData.success) newScreenshots.push(ssData.data.url);
+        }
+      }
+
+      // 4. Publish the update
       toast.loading('Publishing Update...', { id: toastId });
       const updateRes = await fetch(`${apiUrl}/api/apps/${selectedApp.packageName}/update`, {
         method: 'POST',
@@ -258,7 +296,10 @@ export default function AdminDashboard() {
           releaseNotes: updateNotes,
           apkUrl: apkData.data.url,
           apkSize: apkData.data.fileSize,
-          checksum: apkData.data.checksum
+          checksum: apkData.data.checksum,
+          ...(updateDescription && { description: updateDescription }),
+          ...(newIconUrl && { iconUrl: newIconUrl }),
+          ...(newScreenshots.length > 0 && { screenshots: newScreenshots }),
         })
       });
 
@@ -266,19 +307,17 @@ export default function AdminDashboard() {
       if (!updateResult.success) throw new Error('Failed to publish update');
 
       toast.success('Update released successfully!', { id: toastId });
-      
-      // Fetch latest app info and update selected app (to refresh version history)
       fetchApps();
       fetchStats();
-      const updatedAppRes = await fetch(`${apiUrl}/api/apps/${selectedApp.packageName}`);
+      // Refresh selected app data
+      const updatedAppRes = await fetch(`${apiUrl}/api/apps/${selectedApp.packageName}`, {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
       const updatedApp = await updatedAppRes.json();
-      if (updatedApp.success) {
-        // Just mocking the refresh of version history structure based on previous mock for simplicity in UI update, 
-        // normally we would want to pull the version list from an endpoint.
-        setSelectedApp({...selectedApp}); 
-      }
+      if (updatedApp.success) setSelectedApp(updatedApp.data.app);
 
       setUpdateVersion(''); setUpdateNotes(''); setUpdateApkFile(null);
+      setUpdateIconFile(null); setUpdateScreenshotFiles(null); setUpdateDescription('');
     } catch (error: any) {
       toast.error(error.message || 'Error releasing update', { id: toastId });
     } finally {
@@ -658,18 +697,33 @@ export default function AdminDashboard() {
             </div>
             </div>
             <form className="space-y-4" onSubmit={(e) => e.preventDefault()}>
-              <div>
-                <label className="text-sm font-medium text-text-muted mb-1 block">Version Name</label>
-                <input 
-                  type="text" 
-                  placeholder="e.g., 2.1.0" 
-                  value={updateVersion}
-                  onChange={(e) => setUpdateVersion(e.target.value)}
-                  className="w-full bg-background-darker border border-gray-700 rounded-lg px-4 py-2.5 text-text focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent transition-all"
-                />
+              {/* Version & Release Notes */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <label className="text-sm font-medium text-text-muted mb-1 block">Version Name <span className="text-red-400">*</span></label>
+                  <input 
+                    type="text" 
+                    placeholder="e.g., 2.1.0" 
+                    value={updateVersion}
+                    onChange={(e) => setUpdateVersion(e.target.value)}
+                    className="w-full bg-background-darker border border-gray-700 rounded-lg px-4 py-2.5 text-text focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent transition-all"
+                  />
+                </div>
+                <div>
+                  <label className="text-sm font-medium text-text-muted mb-1 block">Updated APK <span className="text-red-400">*</span></label>
+                  <div 
+                    onClick={() => updateApkInputRef.current?.click()}
+                    className="w-full border-2 border-dashed border-gray-600 rounded-lg px-4 py-2.5 flex items-center gap-2 text-gray-400 hover:text-primary hover:border-primary hover:bg-primary/5 transition-all cursor-pointer"
+                  >
+                    <Upload className="w-4 h-4 shrink-0" />
+                    <p className="text-sm font-medium truncate">{updateApkFile ? updateApkFile.name : 'Select APK file'}</p>
+                  </div>
+                  <input type="file" accept=".apk" className="hidden" ref={updateApkInputRef} onChange={(e) => setUpdateApkFile(e.target.files?.[0] || null)} />
+                </div>
               </div>
+
               <div>
-                <label className="text-sm font-medium text-text-muted mb-1 block">Release Notes</label>
+                <label className="text-sm font-medium text-text-muted mb-1 block">Release Notes <span className="text-red-400">*</span></label>
                 <textarea 
                   rows={3}
                   placeholder="What's new in this update?" 
@@ -678,17 +732,55 @@ export default function AdminDashboard() {
                   className="w-full bg-background-darker border border-gray-700 rounded-lg px-4 py-2.5 text-text focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent transition-all resize-none"
                 ></textarea>
               </div>
-              <div>
-                <label className="text-sm font-medium text-text-muted mb-1 block">Upload APK</label>
-                <div 
-                  onClick={() => updateApkInputRef.current?.click()}
-                  className="w-full border-2 border-dashed border-gray-600 rounded-xl p-6 flex flex-col items-center justify-center text-gray-400 hover:text-primary hover:border-primary hover:bg-primary/5 transition-all cursor-pointer"
-                >
-                  <Upload className="w-6 h-6 mb-2" />
-                  <p className="text-sm font-medium">{updateApkFile ? updateApkFile.name : 'Select APK file'}</p>
+
+              {/* Optional metadata updates */}
+              <div className="border-t border-gray-700/50 pt-4">
+                <p className="text-xs text-text-muted mb-3 font-medium uppercase tracking-wider">Optional — Update App Info</p>
+                <div className="space-y-4">
+                  <div>
+                    <label className="text-sm font-medium text-text-muted mb-1 block">Updated Description</label>
+                    <textarea 
+                      rows={3}
+                      placeholder={`Current: ${selectedApp?.description?.substring(0, 80) || 'No description'}...`}
+                      value={updateDescription}
+                      onChange={(e) => setUpdateDescription(e.target.value)}
+                      className="w-full bg-background-darker border border-gray-700 rounded-lg px-4 py-2.5 text-text focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent transition-all resize-none"
+                    ></textarea>
+                  </div>
+
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                      <label className="text-sm font-medium text-text-muted mb-1 block">New App Icon</label>
+                      <div 
+                        onClick={() => updateIconInputRef.current?.click()}
+                        className="w-full border-2 border-dashed border-gray-600 rounded-xl p-4 flex flex-col items-center justify-center text-gray-400 hover:text-primary hover:border-primary hover:bg-primary/5 transition-all cursor-pointer"
+                      >
+                        {updateIconFile ? (
+                          <img src={URL.createObjectURL(updateIconFile)} alt="preview" className="w-16 h-16 object-cover rounded-xl mb-1" />
+                        ) : (
+                          <Upload className="w-6 h-6 mb-2" />
+                        )}
+                        <p className="text-xs font-medium truncate max-w-full px-2">{updateIconFile ? updateIconFile.name : 'Upload New Icon'}</p>
+                      </div>
+                      <input type="file" accept="image/png, image/jpeg" className="hidden" ref={updateIconInputRef} onChange={(e) => setUpdateIconFile(e.target.files?.[0] || null)} />
+                    </div>
+
+                    <div>
+                      <label className="text-sm font-medium text-text-muted mb-1 block">New Screenshots</label>
+                      <div 
+                        onClick={() => updateScreenshotsInputRef.current?.click()}
+                        className="w-full border-2 border-dashed border-gray-600 rounded-xl p-4 flex flex-col items-center justify-center text-gray-400 hover:text-primary hover:border-primary hover:bg-primary/5 transition-all cursor-pointer"
+                      >
+                        <Upload className="w-6 h-6 mb-2" />
+                        <p className="text-xs font-medium">{updateScreenshotFiles && updateScreenshotFiles.length > 0 ? `${updateScreenshotFiles.length} file(s) selected` : 'Upload Screenshots'}</p>
+                        <p className="text-[10px] text-gray-500 mt-0.5">Replaces all existing screenshots</p>
+                      </div>
+                      <input type="file" accept="image/png, image/jpeg" multiple className="hidden" ref={updateScreenshotsInputRef} onChange={(e) => setUpdateScreenshotFiles(e.target.files)} />
+                    </div>
+                  </div>
                 </div>
-                <input type="file" accept=".apk" className="hidden" ref={updateApkInputRef} onChange={(e) => setUpdateApkFile(e.target.files?.[0] || null)} />
               </div>
+
               <button 
                 onClick={handleReleaseUpdate}
                 disabled={isPublishing}
