@@ -247,6 +247,10 @@ export default function AdminDashboard() {
       );
       const apkData = apkRes;
       if (!apkData.success) throw new Error("APK upload failed");
+      if (apkData.skippedUpload) {
+        setUploadStatus("Existing APK found, continuing...");
+        setUploadProgress(100);
+      }
 
       // 3. Upload Screenshots
       toast.loading("Uploading Screenshots...", { id: toastId });
@@ -350,6 +354,10 @@ export default function AdminDashboard() {
       );
       const apkData = apkRes;
       if (!apkData.success) throw new Error("APK upload failed");
+      if (apkData.skippedUpload) {
+        setUploadStatus("Existing APK found, continuing...");
+        setUploadProgress(100);
+      }
 
       // 2. Upload new Icon if provided
       let newIconUrl: string | undefined;
