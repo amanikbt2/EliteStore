@@ -21,7 +21,7 @@ export const updateTheme = async (req: Request, res: Response): Promise<void> =>
     await Setting.findOneAndUpdate(
       { key: 'web_theme' }, 
       { value: theme }, 
-      { upsert: true, new: true }
+      { upsert: true, returnDocument: 'after' }
     );
     sendSuccess(res, { theme }, 'Theme updated');
   } catch (error) {

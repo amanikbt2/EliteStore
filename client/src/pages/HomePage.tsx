@@ -1,6 +1,6 @@
 import { useQuery } from '@tanstack/react-query';
 import { Link } from 'react-router-dom';
-import { useEffect, useRef, useCallback } from 'react';
+import { useEffect, useCallback } from 'react';
 
 export default function HomePage() {
   const { data, isLoading, error, refetch, isRefetching } = useQuery({
@@ -17,20 +17,8 @@ export default function HomePage() {
 
   const apps = data?.data?.apps || [];
 
-  const geoRef = useRef<{ country?: string, city?: string } | null>(null);
-
   const trackEvent = useCallback(async (action: string, metadata: any = {}) => {
     try {
-      if (!geoRef.current) {
-        const geoRes = await fetch('https://ipapi.co/json/').catch(() => null);
-        if (geoRes?.ok) {
-          const geo = await geoRes.json();
-          geoRef.current = { country: geo.country, city: geo.city };
-        } else {
-          geoRef.current = {};
-        }
-      }
-      
       const apiUrl = import.meta.env.VITE_API_URL || 'http://127.0.0.1:5000';
       await fetch(`${apiUrl}/api/logs`, {
         method: 'POST',
@@ -40,12 +28,11 @@ export default function HomePage() {
           packageName: 'Storefront',
           metadata: {
             ...metadata,
-            ...geoRef.current,
             referrer: document.referrer || 'Direct'
           }
         })
       });
-    } catch (error) {
+    } catch {
       // Ignore tracking errors
     }
   }, []);

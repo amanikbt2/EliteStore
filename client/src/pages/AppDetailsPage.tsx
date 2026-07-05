@@ -40,7 +40,12 @@ export default function AppDetailsPage() {
     queryKey: ['app', packageName],
     queryFn: async () => {
       const apiUrl = import.meta.env.VITE_API_URL || 'http://127.0.0.1:5000';
-      const res = await fetch(`${apiUrl}/api/apps/${packageName}`);
+      const token = localStorage.getItem('adminToken');
+      const res = await fetch(`${apiUrl}/api/apps/${packageName}`, {
+        headers: token ? { Authorization: `Bearer ${token}` } : {}
+      });
+      // 410 = admin disabled downloads; still return full app data
+      if (res.status === 410) return res.json();
       if (!res.ok) throw new Error('Failed to fetch app');
       return res.json();
     },
@@ -58,21 +63,11 @@ export default function AppDetailsPage() {
   const [canScrollRight, setCanScrollRight] = useState(true);
   const [copiedLink, setCopiedLink] = useState(false);
 
-  const geoRef = useRef<{ country?: string, city?: string } | null>(null);
+
 
   const trackEvent = useCallback(async (action: string, metadata: any = {}) => {
     if (!packageName) return;
     try {
-      if (!geoRef.current) {
-        const geoRes = await fetch('https://ipapi.co/json/').catch(() => null);
-        if (geoRes?.ok) {
-          const geo = await geoRes.json();
-          geoRef.current = { country: geo.country, city: geo.city };
-        } else {
-          geoRef.current = {};
-        }
-      }
-      
       const apiUrl = import.meta.env.VITE_API_URL || 'http://127.0.0.1:5000';
       await fetch(`${apiUrl}/api/logs`, {
         method: 'POST',
@@ -82,12 +77,11 @@ export default function AppDetailsPage() {
           packageName,
           metadata: {
             ...metadata,
-            ...geoRef.current,
             referrer: document.referrer || 'Direct'
           }
         })
       });
-    } catch (error) {
+    } catch {
       // Ignore tracking errors
     }
   }, [packageName]);
@@ -190,6 +184,7 @@ export default function AppDetailsPage() {
     );
   }
 
+
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 sm:py-8">
       {/* Top Bar with Back Button */}
@@ -263,19 +258,40 @@ export default function AppDetailsPage() {
 
         {/* Action Button */}
         <div className="mt-6">
-          <a 
-            href={latestVersion?.apkUrl || '#'}
-            onClick={() => {
-              trackEvent('install_app');
-              const apiUrl = import.meta.env.VITE_API_URL || 'http://127.0.0.1:5000';
-              fetch(`${apiUrl}/api/apps/${packageName}/download`, { method: 'POST' }).catch(() => {});
-            }}
-            download={`${appName}.apk`}
-            className="w-full bg-primary hover:bg-blue-600 text-white px-10 py-3 rounded-full font-bold text-base transition-all shadow-lg hover:shadow-primary/30 active:scale-[0.98] flex items-center justify-center cursor-pointer"
-          >
-            Install
-          </a>
+          {app?.downloadEnabled === false ? (
+            <div className="flex flex-col items-center gap-2">
+              <div
+                className="w-full bg-gray-700/40 text-gray-500 px-10 py-3 rounded-full font-bold text-base flex items-center justify-center cursor-not-allowed select-none opacity-60"
+                aria-disabled="true"
+              >
+                Install
+              </div>
+              <p className="text-red-400 text-sm font-medium text-center animate-pulse">
+                You cannot install the app at the moment.{' '}
+                <a
+                  href="mailto:support@elitehub.app"
+                  className="underline underline-offset-2 hover:text-red-300 transition-colors"
+                >
+                  Sign up for more info
+                </a>
+              </p>
+            </div>
+          ) : (
+            <a 
+              href={latestVersion?.apkUrl || '#'}
+              onClick={() => {
+                trackEvent('install_app');
+                const apiUrl = import.meta.env.VITE_API_URL || 'http://127.0.0.1:5000';
+                fetch(`${apiUrl}/api/apps/${packageName}/download`, { method: 'POST' }).catch(() => {});
+              }}
+              download={`${appName}.apk`}
+              className="w-full bg-primary hover:bg-blue-600 text-white px-10 py-3 rounded-full font-bold text-base transition-all shadow-lg hover:shadow-primary/30 active:scale-[0.98] flex items-center justify-center cursor-pointer"
+            >
+              Install
+            </a>
+          )}
         </div>
+
       </div>
 
       {/* Screenshots Section */}

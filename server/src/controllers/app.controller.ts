@@ -4,11 +4,16 @@ import Version from '../models/Version';
 import Category from '../models/Category';
 import Review from '../models/Review';
 import { imagekit } from '../config/imagekit';
-import { sendSuccess, sendError } from '../utils';
+import { sendSuccess, sendError, verifyToken } from '../utils';
 
 export const getApps = async (req: Request, res: Response): Promise<void> => {
   try {
     const { category, search, page = 1, limit = 20 } = req.query;
+
+    // Check if the caller is an authenticated admin
+    const token = req.headers.authorization?.split(' ')[1];
+    const isAdmin = token ? !!verifyToken(token) : false;
+
     const query: any = { status: 'published' };
 
     if (category) {
@@ -36,6 +41,10 @@ export const getApps = async (req: Request, res: Response): Promise<void> => {
 
 export const getAppByPackageName = async (req: Request, res: Response): Promise<void> => {
   try {
+    // Admins can always see the app regardless of download status
+    const token = req.headers.authorization?.split(' ')[1];
+    const isAdmin = token ? !!verifyToken(token) : false;
+
     const app = await App.findOne({ packageName: req.params.packageName, status: 'published' })
       .populate('category', 'name slug icon');
     
@@ -44,6 +53,8 @@ export const getAppByPackageName = async (req: Request, res: Response): Promise<
       return;
     }
 
+    // Public users: if download is disabled, still return full app data so the page renders normally.
+    // The frontend will grey out the install button based on app.downloadEnabled === false.
     const versions = await Version.find({ appId: app._id, status: 'active' }).sort({ versionCode: -1 });
     const latestVersion = versions.length > 0 ? versions[0] : null;
     
@@ -159,6 +170,9 @@ export const releaseUpdate = async (req: Request, res: Response): Promise<void> 
     const latestVersion = await Version.findOne({ appId: app._id }).sort({ versionCode: -1 });
     const nextCode = latestVersion ? latestVersion.versionCode + 1 : 1;
 
+    // Fetch all old versions before creating the new one
+    const oldVersions = await Version.find({ appId: app._id });
+
     const version = new Version({
       appId: app._id,
       versionName,
@@ -171,6 +185,14 @@ export const releaseUpdate = async (req: Request, res: Response): Promise<void> 
     });
 
     await version.save();
+
+    // Delete the previous versions to save space
+    for (const old of oldVersions) {
+      if (old.apkUrl) {
+        await deleteFromImageKit(old.apkUrl);
+      }
+      await Version.deleteOne({ _id: old._id });
+    }
 
     sendSuccess(res, version, 'Update released successfully');
   } catch (error) {
@@ -198,6 +220,37 @@ const deleteFromImageKit = async (url: string) => {
     console.error(`Failed to delete ImageKit file for URL ${url}:`, error);
   }
 };
+
+export const toggleDownload = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const { packageName } = req.params;
+
+    // Read the current value first (treat missing field as true = enabled)
+    const current = await App.findOne({ packageName }, { downloadEnabled: 1 });
+    if (!current) {
+      sendError(res, 'App not found', 404);
+      return;
+    }
+
+    // downloadEnabled missing from old docs means it was always enabled (true)
+    const currentValue = current.downloadEnabled !== false;
+    const newValue = !currentValue;
+
+    await App.updateOne({ packageName }, { downloadEnabled: newValue });
+
+    const app = await App.findOne({ packageName });
+    if (!app) {
+      sendError(res, 'App not found', 404);
+      return;
+    }
+
+    sendSuccess(res, { downloadEnabled: app.downloadEnabled }, `Downloads ${app.downloadEnabled ? 'enabled' : 'disabled'} successfully`);
+  } catch (error) {
+    console.error('Toggle Download Error:', error);
+    sendError(res, 'Error toggling download status', 500);
+  }
+};
+
 
 export const deleteApp = async (req: Request, res: Response): Promise<void> => {
   try {
@@ -246,7 +299,7 @@ export const incrementDownloads = async (req: Request, res: Response): Promise<v
     const app = await App.findOneAndUpdate(
       { packageName },
       { $inc: { downloads: 1 } },
-      { new: true }
+      { returnDocument: 'after' }
     );
 
     if (!app) {

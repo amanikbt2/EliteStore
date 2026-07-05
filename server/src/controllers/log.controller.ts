@@ -2,17 +2,47 @@ import { Request, Response } from 'express';
 import Log from '../models/Log';
 import { sendSuccess, sendError } from '../utils';
 
+const geoCache = new Map<string, { country?: string; city?: string }>();
+
+const getGeo = async (ip: string): Promise<{ country?: string; city?: string }> => {
+  if (!ip || ip === '::1' || ip === '127.0.0.1') return {};
+  if (geoCache.has(ip)) return geoCache.get(ip)!;
+  try {
+    const res = await fetch(`https://ipapi.co/${ip}/json/`, {
+      headers: { 'User-Agent': 'EliteHub/1.0' },
+      signal: AbortSignal.timeout(3000)
+    });
+    if (!res.ok) return {};
+    const data = await res.json() as any;
+    const geo = { country: data.country_name, city: data.city };
+    geoCache.set(ip, geo);
+    return geo;
+  } catch {
+    return {};
+  }
+};
+
 export const createLog = async (req: Request, res: Response): Promise<void> => {
   try {
     const { action, packageName, metadata } = req.body;
     
+    // Resolve client IP (works behind proxies)
+    const clientIp: string = (
+      (req.headers['x-forwarded-for'] as string)?.split(',')[0].trim() ||
+      req.socket?.remoteAddress ||
+      ''
+    ).replace('::ffff:', '');
+
     // Add server-side IP/UserAgent if not provided
     const userAgent = metadata?.userAgent || req.headers['user-agent'] || 'Unknown';
+
+    // Geo lookup on the server — no CORS issues
+    const geo = await getGeo(clientIp);
     
     const newLog = new Log({
       action,
       packageName,
-      metadata: { ...metadata, userAgent }
+      metadata: { ...metadata, ...geo, userAgent }
     });
 
     await newLog.save();

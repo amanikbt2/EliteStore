@@ -19,6 +19,7 @@ export interface IApp extends Document {
   isEditorChoice: boolean;
   isTrending: boolean;
   isFeatured: boolean;
+  downloadEnabled: boolean;
   status: 'published' | 'hidden' | 'deleted';
   createdAt: Date;
   updatedAt: Date;
@@ -43,6 +44,7 @@ const AppSchema: Schema = new Schema({
   isEditorChoice: { type: Boolean, default: false },
   isTrending: { type: Boolean, default: false },
   isFeatured: { type: Boolean, default: false },
+  downloadEnabled: { type: Boolean, default: true },
   status: { type: String, enum: ['published', 'hidden', 'deleted'], default: 'published' }
 }, { timestamps: true });
 

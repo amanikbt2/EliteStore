@@ -2,7 +2,8 @@ import { useState, useRef, useEffect } from 'react';
 import toast from 'react-hot-toast';
 import { 
   PlusCircle, Upload, LayoutGrid, Search, ArrowLeft, 
-  History, UploadCloud, BarChart3, AppWindow, Star, Download, Copy, Check, Trash2, Activity, Globe2, Eraser
+  History, UploadCloud, BarChart3, AppWindow, Star, Download, Copy, Check, Trash2, Activity, Globe2, Eraser,
+  ToggleLeft, ToggleRight
 } from 'lucide-react';
 
 
@@ -36,6 +37,7 @@ export default function AdminDashboard() {
   const [updateNotes, setUpdateNotes] = useState('');
   const [updateApkFile, setUpdateApkFile] = useState<File | null>(null);
   const updateApkInputRef = useRef<HTMLInputElement>(null);
+  const [isTogglingDownload, setIsTogglingDownload] = useState(false);
 
   useEffect(() => {
     fetchApps();
@@ -284,13 +286,43 @@ export default function AdminDashboard() {
     }
   };
 
+  const handleToggleDownload = async () => {
+    if (!selectedApp) return;
+    setIsTogglingDownload(true);
+    try {
+      const apiUrl = import.meta.env.VITE_API_URL || 'http://127.0.0.1:5000';
+      const token = localStorage.getItem('adminToken');
+      const res = await fetch(`${apiUrl}/api/apps/${selectedApp.packageName}/toggle-download`, {
+        method: 'PATCH',
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      const data = await res.json();
+      if (!data.success) throw new Error('Toggle failed');
+      const newState = data.data.downloadEnabled;
+      // Update selectedApp view
+      setSelectedApp((prev: any) => ({ ...prev, downloadEnabled: newState }));
+      // Also sync the apps list so the badge updates on the card
+      setApps((prev: any[]) => prev.map(a =>
+        a.packageName === selectedApp.packageName ? { ...a, downloadEnabled: newState } : a
+      ));
+      toast.success(`Downloads ${newState ? 'enabled ✓' : 'disabled ✗'} for ${selectedApp.name}`);
+    } catch {
+      toast.error('Failed to toggle download status');
+    } finally {
+      setIsTogglingDownload(false);
+    }
+  };
+
   const handleSelectApp = async (app: any) => {
     // Optimistically set it so UI transitions immediately
     setSelectedApp(app);
     
     try {
       const apiUrl = import.meta.env.VITE_API_URL || 'http://127.0.0.1:5000';
-      const res = await fetch(`${apiUrl}/api/apps/${app.packageName}`);
+      const token = localStorage.getItem('adminToken');
+      const res = await fetch(`${apiUrl}/api/apps/${app.packageName}`, {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
       const data = await res.json();
       if (data.success && data.data.app) {
         // Update with full details including version history
@@ -395,10 +427,16 @@ export default function AdminDashboard() {
           <div 
             key={app._id || app.id} 
             onClick={() => handleSelectApp(app)}
-            className="bg-surface-dark rounded-2xl p-5 border border-gray-100/5 shadow-lg hover:shadow-xl hover:border-gray-700/50 transition-all cursor-pointer group"
+            className="bg-surface-dark rounded-2xl p-5 border border-gray-100/5 shadow-lg hover:shadow-xl hover:border-gray-700/50 transition-all cursor-pointer group relative"
           >
+            {/* Downloads disabled badge */}
+            {app.downloadEnabled === false && (
+              <span className="absolute top-3 right-3 bg-red-500/15 text-red-400 border border-red-500/30 text-[10px] font-bold px-2 py-0.5 rounded-full uppercase tracking-wide">
+                Downloads Off
+              </span>
+            )}
             <div className="flex items-start gap-4">
-              <div className="w-16 h-16 bg-gradient-to-tr from-primary/80 to-accent/80 rounded-xl shadow-md flex items-center justify-center shrink-0 group-hover:scale-105 transition-transform overflow-hidden">
+              <div className={`w-16 h-16 bg-gradient-to-tr from-primary/80 to-accent/80 rounded-xl shadow-md flex items-center justify-center shrink-0 group-hover:scale-105 transition-transform overflow-hidden ${app.downloadEnabled === false ? 'opacity-50 grayscale' : ''}`}>
                 {app.iconUrl ? <img src={app.iconUrl} alt="icon" className="w-full h-full object-cover" /> : <LayoutGrid className="w-8 h-8 text-white" />}
               </div>
               <div className="flex-1 min-w-0">
@@ -592,6 +630,23 @@ export default function AdminDashboard() {
               <h3 className="text-lg font-bold text-text flex items-center gap-2">
                 <UploadCloud className="w-5 h-5 text-primary" /> Release Update
               </h3>
+            <div className="flex items-center gap-2">
+              {/* Download Enable/Disable Toggle */}
+              <button
+                onClick={handleToggleDownload}
+                disabled={isTogglingDownload}
+                title={selectedApp?.downloadEnabled !== false ? 'Disable downloads' : 'Enable downloads'}
+                className={`flex items-center gap-1.5 px-3 py-1.5 text-sm rounded-lg font-medium transition-all disabled:opacity-50 ${
+                  selectedApp?.downloadEnabled !== false
+                    ? 'bg-green-500/10 hover:bg-green-500/20 text-green-400'
+                    : 'bg-yellow-500/10 hover:bg-yellow-500/20 text-yellow-400'
+                }`}
+              >
+                {selectedApp?.downloadEnabled !== false
+                  ? <ToggleRight className="w-4 h-4" />
+                  : <ToggleLeft className="w-4 h-4" />}
+                {isTogglingDownload ? 'Updating...' : (selectedApp?.downloadEnabled !== false ? 'Downloads On' : 'Downloads Off')}
+              </button>
               <button 
                 onClick={handleDeleteApp}
                 disabled={isDeletingApp}
@@ -600,6 +655,7 @@ export default function AdminDashboard() {
                 <Trash2 className="w-4 h-4" /> 
                 {isDeletingApp ? 'Deleting...' : 'Delete App'}
               </button>
+            </div>
             </div>
             <form className="space-y-4" onSubmit={(e) => e.preventDefault()}>
               <div>
