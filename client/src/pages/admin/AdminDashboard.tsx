@@ -66,6 +66,7 @@ export default function AdminDashboard() {
   const [isTogglingDownload, setIsTogglingDownload] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(0);
   const [uploadStatus, setUploadStatus] = useState("");
+  const [uploadEta, setUploadEta] = useState("");
 
   useEffect(() => {
     fetchApps();
@@ -164,6 +165,7 @@ export default function AdminDashboard() {
   ) => {
     return new Promise<any>((resolve, reject) => {
       const xhr = new XMLHttpRequest();
+      const startedAt = Date.now();
       xhr.open("POST", url, true);
       if (token) {
         xhr.setRequestHeader("Authorization", `Bearer ${token}`);
@@ -172,8 +174,16 @@ export default function AdminDashboard() {
       xhr.upload.onprogress = (event) => {
         if (event.lengthComputable) {
           const percent = Math.round((event.loaded / event.total) * 100);
+          const elapsedMs = Date.now() - startedAt;
+          const estimatedTotalMs = (elapsedMs / Math.max(percent, 1)) * 100;
+          const remainingMs = Math.max(estimatedTotalMs - elapsedMs, 0);
+          const minutes = Math.floor(remainingMs / 60000);
+          const seconds = Math.ceil((remainingMs % 60000) / 1000);
+          const etaText =
+            minutes > 0 ? `${minutes}m ${seconds}s left` : `${seconds}s left`;
           setUploadProgress(percent);
           setUploadStatus(`${label} ${percent}%`);
+          setUploadEta(etaText);
         }
       };
 
@@ -843,6 +853,10 @@ export default function AdminDashboard() {
                     {uploadProgress}%
                   </span>
                 </div>
+                <div className="flex items-center justify-between text-xs text-text-muted mb-2">
+                  <span>{uploadEta || "Estimating..."}</span>
+                  <span>Uploading</span>
+                </div>
                 <div className="h-2 w-full overflow-hidden rounded-full bg-background-darker">
                   <div
                     className="h-full rounded-full bg-gradient-to-r from-primary to-accent transition-all duration-300"
@@ -1115,6 +1129,10 @@ export default function AdminDashboard() {
                       <span className="font-semibold text-primary">
                         {uploadProgress}%
                       </span>
+                    </div>
+                    <div className="flex items-center justify-between text-xs text-text-muted mb-2">
+                      <span>{uploadEta || "Estimating..."}</span>
+                      <span>Uploading</span>
                     </div>
                     <div className="h-2 w-full overflow-hidden rounded-full bg-background-darker">
                       <div

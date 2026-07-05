@@ -2,7 +2,6 @@ import { Request, Response } from "express";
 import { imagekit } from "../config/imagekit";
 import { sendSuccess, sendError } from "../utils";
 import crypto from "crypto";
-import fetch from "node-fetch";
 
 export const uploadImage = async (
   req: Request,
@@ -63,7 +62,7 @@ export const uploadApk = async (req: Request, res: Response): Promise<void> => {
     const releaseApiUrl = `https://api.github.com/repos/${githubOwner}/${githubRepo}/releases/tags/${releaseTag}`;
 
     let release: any;
-    const releaseRes = await fetch(releaseApiUrl, {
+    const releaseRes = await globalThis.fetch(releaseApiUrl, {
       method: "GET",
       headers: {
         Authorization: `token ${githubToken}`,
@@ -74,7 +73,7 @@ export const uploadApk = async (req: Request, res: Response): Promise<void> => {
     if (releaseRes.ok) {
       release = await releaseRes.json();
     } else if (releaseRes.status === 404) {
-      const createReleaseRes = await fetch(
+      const createReleaseRes = await globalThis.fetch(
         `https://api.github.com/repos/${githubOwner}/${githubRepo}/releases`,
         {
           method: "POST",
@@ -92,7 +91,10 @@ export const uploadApk = async (req: Request, res: Response): Promise<void> => {
       );
 
       if (!createReleaseRes.ok) {
-        throw new Error("Failed to create GitHub release");
+        const errorBody = await createReleaseRes.text();
+        throw new Error(
+          `Failed to create GitHub release: ${createReleaseRes.status} ${errorBody}`,
+        );
       }
       release = await createReleaseRes.json();
     } else {
@@ -121,14 +123,14 @@ export const uploadApk = async (req: Request, res: Response): Promise<void> => {
     }
 
     const uploadUrl = `https://uploads.github.com/repos/${githubOwner}/${githubRepo}/releases/${release.id}/assets?name=${encodeURIComponent(assetName)}`;
-    const uploadRes = await fetch(uploadUrl, {
+    const uploadRes = await globalThis.fetch(uploadUrl, {
       method: "POST",
       headers: {
         Authorization: `token ${githubToken}`,
         Accept: "application/vnd.github+json",
         "Content-Type": "application/vnd.android.package-archive",
       },
-      body: req.file.buffer,
+      body: new Uint8Array(req.file.buffer),
     });
 
     if (!uploadRes.ok) {
@@ -148,8 +150,8 @@ export const uploadApk = async (req: Request, res: Response): Promise<void> => {
       },
       "APK uploaded to GitHub release",
     );
-  } catch (error) {
+  } catch (error: any) {
     console.error("GitHub APK Upload Error:", error);
-    sendError(res, "APK upload failed", 500);
+    sendError(res, error.message || "APK upload failed", 500);
   }
 };
