@@ -62,74 +62,31 @@ export default function AppDetailsPage() {
   const [canScrollLeft, setCanScrollLeft] = useState(false);
   const [canScrollRight, setCanScrollRight] = useState(true);
   const [copiedLink, setCopiedLink] = useState(false);
-  const [installState, setInstallState] = useState<'idle' | 'downloading' | 'installing' | 'installed'>('idle');
-  const [downloadPercent, setDownloadPercent] = useState<number>(0);
+  const [installState, setInstallState] = useState<'idle' | 'downloading'>('idle');
 
   const handleInstallClick = (e: React.MouseEvent) => {
     e.preventDefault();
     if (!latestVersion?.apkUrl) return;
 
-    if (installState === 'installed') {
-      window.location.href = `intent://launch#Intent;scheme=android-app;package=${packageName};end`;
-      return;
-    }
-
-    if (installState !== 'idle') return;
+    // Trigger download synchronously to ensure browser does not block it
+    const a = document.createElement('a');
+    a.href = latestVersion.apkUrl;
+    a.download = `${appName}.apk`;
+    a.style.display = 'none';
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
 
     setInstallState('downloading');
-    setDownloadPercent(0);
 
-    const apiUrl = import.meta.env.VITE_API_URL || 'http://127.0.0.1:5000';
-    const downloadProxyUrl = `${apiUrl}/api/apps/${packageName}/download-file`;
-
-    const xhr = new XMLHttpRequest();
-    xhr.open('GET', downloadProxyUrl, true);
-    xhr.responseType = 'blob';
-    
-    xhr.onload = () => {
-      if (xhr.status === 200) {
-        const blob = xhr.response;
-        const blobUrl = URL.createObjectURL(blob);
-        
-        const a = document.createElement('a');
-        a.href = blobUrl;
-        a.download = `${appName}.apk`;
-        document.body.appendChild(a);
-        a.click();
-        document.body.removeChild(a);
-        
-        setInstallState('installing');
-        setTimeout(() => {
-          setInstallState('installed');
-        }, 8000);
-      } else {
-        window.location.href = downloadProxyUrl;
-        setInstallState('installing');
-        setTimeout(() => {
-          setInstallState('installed');
-        }, 8000);
-      }
-    };
-
-    xhr.onprogress = (event) => {
-      if (event.lengthComputable) {
-        const percent = Math.round((event.loaded / event.total) * 100);
-        setDownloadPercent(percent);
-      }
-    };
-
-    xhr.onerror = () => {
-      window.location.href = downloadProxyUrl;
-      setInstallState('installing');
-      setTimeout(() => {
-        setInstallState('installed');
-      }, 8000);
-    };
-
-    xhr.send();
-
+    // Log metrics
     trackEvent('install_app');
+    const apiUrl = import.meta.env.VITE_API_URL || 'http://127.0.0.1:5000';
     fetch(`${apiUrl}/api/apps/${packageName}/download`, { method: 'POST' }).catch(() => {});
+
+    setTimeout(() => {
+      setInstallState('idle');
+    }, 15000);
   };
 
 
@@ -350,26 +307,21 @@ export default function AppDetailsPage() {
               <button 
                 onClick={handleInstallClick}
                 disabled={installState === 'downloading'}
-                className={`w-full text-white px-10 py-3 rounded-full font-bold text-base transition-all shadow-lg active:scale-[0.98] flex items-center justify-center cursor-pointer ${
+                className={`w-full text-white px-10 py-3 rounded-full font-bold text-base transition-all shadow-lg active:scale-[0.98] flex items-center justify-center gap-2 ${
                   installState === 'downloading'
-                    ? 'bg-primary-dark/80 cursor-wait'
-                    : installState === 'installing'
-                    ? 'bg-yellow-600 hover:bg-yellow-700 shadow-yellow-500/20'
-                    : installState === 'installed'
-                    ? 'bg-green-600 hover:bg-green-700 shadow-green-500/20'
-                    : 'bg-primary hover:bg-blue-600 hover:shadow-primary/30'
+                    ? 'bg-primary/50 cursor-wait'
+                    : 'bg-primary hover:bg-blue-600 hover:shadow-primary/30 cursor-pointer'
                 }`}
               >
-                {installState === 'idle' && 'Install'}
-                {installState === 'downloading' && `Downloading (${downloadPercent}%)...`}
-                {installState === 'installing' && 'Installing...'}
-                {installState === 'installed' && 'Open App'}
+                {installState === 'downloading' ? (
+                  <>
+                    <Loader2 className="w-5 h-5 animate-spin" />
+                    Downloading...
+                  </>
+                ) : (
+                  'Install'
+                )}
               </button>
-              {installState === 'installing' && (
-                <p className="text-yellow-400 text-xs font-medium text-center animate-pulse mt-1">
-                  Please open the downloaded APK file from your notifications/downloads folder to complete installation.
-                </p>
-              )}
             </div>
           )}
         </div>
