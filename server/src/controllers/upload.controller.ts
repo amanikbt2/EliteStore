@@ -84,7 +84,7 @@ export const uploadApk = async (req: Request, res: Response): Promise<void> => {
     let foundRelease: any = null;
 
     const normalize = (s: string) =>
-      s.replace(/[^a-zA-Z0-9]/g, "_").toLowerCase();
+      s.replace(/[^a-zA-Z0-9]+/g, "_").toLowerCase();
 
     for (const r of releases) {
       const assets = r.assets || [];
