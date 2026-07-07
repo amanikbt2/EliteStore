@@ -14,5 +14,6 @@ router.use('/update', updateRoutes);
 router.use('/upload', uploadRoutes);
 router.use('/settings', settingsRoutes);
 router.use('/logs', logRoutes);
+router.use('/activity', logRoutes);
 
 export default router;

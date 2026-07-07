@@ -69,7 +69,7 @@ export default function AppDetailsPage() {
     if (!packageName) return;
     try {
       const apiUrl = import.meta.env.VITE_API_URL || 'http://127.0.0.1:5000';
-      await fetch(`${apiUrl}/api/logs`, {
+      await fetch(`${apiUrl}/api/activity`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({

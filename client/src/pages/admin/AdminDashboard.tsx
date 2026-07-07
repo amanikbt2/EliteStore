@@ -136,7 +136,7 @@ export default function AdminDashboard() {
     if (!hideLoader) setIsFetchingLogs(true);
     try {
       const apiUrl = import.meta.env.VITE_API_URL || "http://127.0.0.1:5000";
-      const res = await adminFetch(`${apiUrl}/api/logs`);
+      const res = await adminFetch(`${apiUrl}/api/activity`);
       const data = await res.json();
       if (data.success) setLogs(data.data.logs || []);
     } catch (error) {
@@ -155,7 +155,7 @@ export default function AdminDashboard() {
       return;
     try {
       const apiUrl = import.meta.env.VITE_API_URL || "http://127.0.0.1:5000";
-      const res = await adminFetch(`${apiUrl}/api/logs`, {
+      const res = await adminFetch(`${apiUrl}/api/activity`, {
         method: "DELETE",
       });
       const data = await res.json();

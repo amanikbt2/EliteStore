@@ -48,6 +48,7 @@ export const uploadApk = async (req: Request, res: Response): Promise<void> => {
       const cleanName = appName.replace(/[^a-zA-Z0-9]/g, "_");
       fileName = `${cleanName}_${packageName}_v${versionName}.apk`;
     }
+    console.log("[uploadApk] Computed fileName ->", fileName);
 
     const githubToken = process.env.GITHUB_TOKEN;
     const githubOwner = process.env.GITHUB_OWNER;
@@ -73,6 +74,10 @@ export const uploadApk = async (req: Request, res: Response): Promise<void> => {
     }
 
     const releases = await listRes.json();
+    console.log(
+      "[uploadApk] Fetched releases count ->",
+      Array.isArray(releases) ? releases.length : 0,
+    );
     const assetName = fileName;
 
     let foundAsset: any = null;
@@ -83,6 +88,9 @@ export const uploadApk = async (req: Request, res: Response): Promise<void> => {
 
     for (const r of releases) {
       const assets = r.assets || [];
+      for (const a of assets) {
+        console.log("[uploadApk] checking asset ->", a.name);
+      }
       const match = assets.find(
         (a: any) => normalize(a.name) === normalize(assetName),
       );
