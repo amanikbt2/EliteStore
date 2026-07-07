@@ -78,9 +78,14 @@ export const uploadApk = async (req: Request, res: Response): Promise<void> => {
     let foundAsset: any = null;
     let foundRelease: any = null;
 
+    const normalize = (s: string) =>
+      s.replace(/[^a-zA-Z0-9]/g, "_").toLowerCase();
+
     for (const r of releases) {
       const assets = r.assets || [];
-      const match = assets.find((a: any) => a.name === assetName);
+      const match = assets.find(
+        (a: any) => normalize(a.name) === normalize(assetName),
+      );
       if (match) {
         foundAsset = match;
         foundRelease = r;
