@@ -58,7 +58,6 @@ export const uploadApk = async (req: Request, res: Response): Promise<void> => {
       return;
     }
 
-    const releaseTag = process.env.GITHUB_RELEASE_TAG || "latest";
     // First, try to find an existing asset with the same name across all releases
     const listReleasesUrl = `https://api.github.com/repos/${githubOwner}/${githubRepo}/releases`;
     const listRes = await globalThis.fetch(listReleasesUrl, {
