@@ -348,3 +348,59 @@ export const incrementDownloads = async (req: Request, res: Response): Promise<v
     sendError(res, 'Error incrementing downloads', 500);
   }
 };
+
+export const downloadApkFile = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const { packageName } = req.params;
+    const app = await App.findOne({ packageName });
+    if (!app) {
+      res.status(404).send('App not found');
+      return;
+    }
+
+    const latestVersion = await Version.findOne({ appId: app._id, status: 'active' }).sort({ versionCode: -1 });
+    if (!latestVersion || !latestVersion.apkUrl) {
+      res.status(404).send('No APK found for this app');
+      return;
+    }
+
+    // Clean name for downloading (e.g. xayLite.apk)
+    const cleanName = app.name.replace(/[^a-zA-Z0-9]/g, "");
+    const downloadName = `${cleanName}.apk`;
+
+    const response = await globalThis.fetch(latestVersion.apkUrl);
+    if (!response.ok) {
+      throw new Error(`Failed to fetch APK from source: ${response.statusText}`);
+    }
+
+    res.setHeader('Content-Disposition', `attachment; filename="${downloadName}"`);
+    res.setHeader('Content-Type', 'application/vnd.android.package-archive');
+    if (latestVersion.fileSize) {
+      res.setHeader('Content-Length', latestVersion.fileSize.toString());
+    }
+
+    if (response.body) {
+      const { Readable } = require('stream');
+      if (typeof Readable.fromWeb === 'function') {
+        Readable.fromWeb(response.body).pipe(res);
+      } else {
+        const reader = response.body.getReader();
+        const writeNext = async () => {
+          const { done, value } = await reader.read();
+          if (done) {
+            res.end();
+            return;
+          }
+          res.write(Buffer.from(value));
+          writeNext();
+        };
+        writeNext();
+      }
+    } else {
+      res.status(500).send('Source response has no body');
+    }
+  } catch (error) {
+    console.error('Download proxy error:', error);
+    res.status(500).send('Error downloading file');
+  }
+};

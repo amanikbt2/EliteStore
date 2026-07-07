@@ -79,8 +79,11 @@ export default function AppDetailsPage() {
     setInstallState('downloading');
     setDownloadPercent(0);
 
+    const apiUrl = import.meta.env.VITE_API_URL || 'http://127.0.0.1:5000';
+    const downloadProxyUrl = `${apiUrl}/api/apps/${packageName}/download-file`;
+
     const xhr = new XMLHttpRequest();
-    xhr.open('GET', latestVersion.apkUrl, true);
+    xhr.open('GET', downloadProxyUrl, true);
     xhr.responseType = 'blob';
     
     xhr.onload = () => {
@@ -100,7 +103,7 @@ export default function AppDetailsPage() {
           setInstallState('installed');
         }, 8000);
       } else {
-        window.location.href = latestVersion.apkUrl;
+        window.location.href = downloadProxyUrl;
         setInstallState('installing');
         setTimeout(() => {
           setInstallState('installed');
@@ -116,7 +119,7 @@ export default function AppDetailsPage() {
     };
 
     xhr.onerror = () => {
-      window.location.href = latestVersion.apkUrl;
+      window.location.href = downloadProxyUrl;
       setInstallState('installing');
       setTimeout(() => {
         setInstallState('installed');
@@ -126,7 +129,6 @@ export default function AppDetailsPage() {
     xhr.send();
 
     trackEvent('install_app');
-    const apiUrl = import.meta.env.VITE_API_URL || 'http://127.0.0.1:5000';
     fetch(`${apiUrl}/api/apps/${packageName}/download`, { method: 'POST' }).catch(() => {});
   };
 
