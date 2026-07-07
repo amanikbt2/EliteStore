@@ -8,6 +8,7 @@
   ],
   "scripts": {
     "start": "npm run start --workspaces",
-    "dev": "npm run dev --workspaces"
+    "dev": "npm run dev --workspaces",
+    "web": "npm --workspace client run dev"
   }
 }

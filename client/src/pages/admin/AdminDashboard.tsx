@@ -84,13 +84,32 @@ export default function AdminDashboard() {
     return () => clearInterval(intervalId);
   }, [activeTab]);
 
+  const handleAuthError = () => {
+    localStorage.removeItem("adminToken");
+    toast.error("Session expired. Please log in again.");
+    setTimeout(() => {
+      window.location.href = "/admin/login";
+    }, 1500);
+  };
+
+  const adminFetch = async (url: string, options: RequestInit = {}) => {
+    const token = localStorage.getItem("adminToken");
+    const headers = {
+      ...options.headers,
+      "Authorization": `Bearer ${token}`
+    };
+    const res = await fetch(url, { ...options, headers });
+    if (res.status === 401) {
+      handleAuthError();
+      throw new Error("Session expired");
+    }
+    return res;
+  };
+
   const fetchStats = async () => {
     try {
       const apiUrl = import.meta.env.VITE_API_URL || "http://127.0.0.1:5000";
-      const token = localStorage.getItem("adminToken");
-      const res = await fetch(`${apiUrl}/api/admin/stats`, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
+      const res = await adminFetch(`${apiUrl}/api/admin/stats`);
       const data = await res.json();
       if (data.success) {
         setStats(data.data);
@@ -103,10 +122,7 @@ export default function AdminDashboard() {
   const fetchApps = async () => {
     try {
       const apiUrl = import.meta.env.VITE_API_URL || "http://127.0.0.1:5000";
-      const token = localStorage.getItem("adminToken");
-      const res = await fetch(`${apiUrl}/api/apps`, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
+      const res = await adminFetch(`${apiUrl}/api/apps`);
       const data = await res.json();
       if (data.success) {
         setApps(data.data.apps || []);
@@ -120,10 +136,7 @@ export default function AdminDashboard() {
     if (!hideLoader) setIsFetchingLogs(true);
     try {
       const apiUrl = import.meta.env.VITE_API_URL || "http://127.0.0.1:5000";
-      const token = localStorage.getItem("adminToken");
-      const res = await fetch(`${apiUrl}/api/logs`, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
+      const res = await adminFetch(`${apiUrl}/api/logs`);
       const data = await res.json();
       if (data.success) setLogs(data.data.logs || []);
     } catch (error) {
@@ -142,10 +155,8 @@ export default function AdminDashboard() {
       return;
     try {
       const apiUrl = import.meta.env.VITE_API_URL || "http://127.0.0.1:5000";
-      const token = localStorage.getItem("adminToken");
-      const res = await fetch(`${apiUrl}/api/logs`, {
+      const res = await adminFetch(`${apiUrl}/api/logs`, {
         method: "DELETE",
-        headers: { Authorization: `Bearer ${token}` },
       });
       const data = await res.json();
       if (data.success) {
@@ -194,6 +205,9 @@ export default function AdminDashboard() {
           } catch {
             resolve(xhr.responseText);
           }
+        } else if (xhr.status === 401) {
+          handleAuthError();
+          reject(new Error("Session expired"));
         } else {
           reject(new Error(`${label} failed`));
         }
@@ -286,11 +300,10 @@ export default function AdminDashboard() {
       toast.loading("Publishing App...", { id: toastId });
       setUploadStatus("Publishing app...");
       setUploadProgress(100);
-      const appRes = await fetch(`${apiUrl}/api/apps`, {
+      const appRes = await adminFetch(`${apiUrl}/api/apps`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
         },
         body: JSON.stringify({
           name: appName,
@@ -410,13 +423,12 @@ export default function AdminDashboard() {
       toast.loading("Publishing Update...", { id: toastId });
       setUploadStatus("Publishing update...");
       setUploadProgress(100);
-      const updateRes = await fetch(
+      const updateRes = await adminFetch(
         `${apiUrl}/api/apps/${selectedApp.packageName}/update`,
         {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
-            Authorization: `Bearer ${token}`,
           },
           body: JSON.stringify({
             versionName: updateVersion,
@@ -438,11 +450,8 @@ export default function AdminDashboard() {
       fetchApps();
       fetchStats();
       // Refresh selected app data
-      const updatedAppRes = await fetch(
-        `${apiUrl}/api/apps/${selectedApp.packageName}`,
-        {
-          headers: { Authorization: `Bearer ${token}` },
-        },
+      const updatedAppRes = await adminFetch(
+        `${apiUrl}/api/apps/${selectedApp.packageName}`
       );
       const updatedApp = await updatedAppRes.json();
       if (updatedApp.success) setSelectedApp(updatedApp.data.app);
@@ -467,12 +476,10 @@ export default function AdminDashboard() {
     setIsTogglingDownload(true);
     try {
       const apiUrl = import.meta.env.VITE_API_URL || "http://127.0.0.1:5000";
-      const token = localStorage.getItem("adminToken");
-      const res = await fetch(
+      const res = await adminFetch(
         `${apiUrl}/api/apps/${selectedApp.packageName}/toggle-download`,
         {
           method: "PATCH",
-          headers: { Authorization: `Bearer ${token}` },
         },
       );
       const data = await res.json();
@@ -504,10 +511,7 @@ export default function AdminDashboard() {
 
     try {
       const apiUrl = import.meta.env.VITE_API_URL || "http://127.0.0.1:5000";
-      const token = localStorage.getItem("adminToken");
-      const res = await fetch(`${apiUrl}/api/apps/${app.packageName}`, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
+      const res = await adminFetch(`${apiUrl}/api/apps/${app.packageName}`);
       const data = await res.json();
       if (data.success && data.data.app) {
         // Update with full details including version history
@@ -534,11 +538,8 @@ export default function AdminDashboard() {
 
     try {
       const apiUrl = import.meta.env.VITE_API_URL || "http://127.0.0.1:5000";
-      const token = localStorage.getItem("adminToken");
-
-      const res = await fetch(`${apiUrl}/api/apps/${selectedApp.packageName}`, {
+      const res = await adminFetch(`${apiUrl}/api/apps/${selectedApp.packageName}`, {
         method: "DELETE",
-        headers: { Authorization: `Bearer ${token}` },
       });
 
       const result = await res.json();
