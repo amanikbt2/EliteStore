@@ -22,6 +22,13 @@ import {
   ToggleRight,
 } from "lucide-react";
 
+const calculateFileSHA256 = async (file: File): Promise<string> => {
+  const buffer = await file.arrayBuffer();
+  const hashBuffer = await crypto.subtle.digest("SHA-256", buffer);
+  const hashArray = Array.from(new Uint8Array(hashBuffer));
+  return hashArray.map((b) => b.toString(16).padStart(2, "0")).join("");
+};
+
 export default function AdminDashboard() {
   const [activeTab, setActiveTab] = useState<"overview" | "apps" | "logs">(
     "overview",
@@ -257,23 +264,36 @@ export default function AdminDashboard() {
 
       // 2. Upload APK
       toast.loading("Uploading APK...", { id: toastId });
-      const apkFormData = new FormData();
-      apkFormData.append("file", apkFile);
-      apkFormData.append("appName", appName);
-      apkFormData.append("packageName", packageName);
-      apkFormData.append("versionName", "1.0.0");
-      setUploadStatus("Uploading APK...");
-      const apkRes = await uploadWithProgress(
-        `${apiUrl}/api/upload/apk`,
-        apkFormData,
-        token,
-        "Uploading APK",
-      );
-      const apkData = apkRes;
-      if (!apkData.success) throw new Error("APK upload failed");
-      if (apkData.skippedUpload) {
-        setUploadStatus("Existing APK found, continuing...");
+      setUploadStatus("Calculating local APK checksum...");
+      const checksum = await calculateFileSHA256(apkFile);
+
+      setUploadStatus("Checking if APK exists on GitHub...");
+      const checkUrl = `${apiUrl}/api/upload/check-apk?appName=${encodeURIComponent(appName)}&packageName=${encodeURIComponent(packageName)}&versionName=1.0.0&checksum=${checksum}`;
+      const checkRes = await adminFetch(checkUrl);
+      const checkData = await checkRes.json();
+
+      let apkData;
+      if (checkData.success && checkData.data.exists) {
+        console.log("[handlePublish] APK found on GitHub, skipping upload!");
+        apkData = checkData;
+        setUploadStatus("Existing APK found on GitHub, reused!");
         setUploadProgress(100);
+      } else {
+        console.log("[handlePublish] APK not found on GitHub, uploading file...");
+        const apkFormData = new FormData();
+        apkFormData.append("file", apkFile);
+        apkFormData.append("appName", appName);
+        apkFormData.append("packageName", packageName);
+        apkFormData.append("versionName", "1.0.0");
+        setUploadStatus("Uploading APK...");
+        const apkRes = await uploadWithProgress(
+          `${apiUrl}/api/upload/apk`,
+          apkFormData,
+          token,
+          "Uploading APK",
+        );
+        apkData = apkRes;
+        if (!apkData.success) throw new Error("APK upload failed");
       }
 
       // 3. Upload Screenshots
@@ -363,23 +383,36 @@ export default function AdminDashboard() {
       const token = localStorage.getItem("adminToken");
 
       // 1. Upload new APK
-      const apkFormData = new FormData();
-      apkFormData.append("file", updateApkFile);
-      apkFormData.append("appName", selectedApp.name);
-      apkFormData.append("packageName", selectedApp.packageName);
-      apkFormData.append("versionName", updateVersion);
-      setUploadStatus("Uploading APK...");
-      const apkRes = await uploadWithProgress(
-        `${apiUrl}/api/upload/apk`,
-        apkFormData,
-        token,
-        "Uploading APK",
-      );
-      const apkData = apkRes;
-      if (!apkData.success) throw new Error("APK upload failed");
-      if (apkData.skippedUpload) {
-        setUploadStatus("Existing APK found, continuing...");
+      setUploadStatus("Calculating local APK checksum...");
+      const checksum = await calculateFileSHA256(updateApkFile);
+
+      setUploadStatus("Checking if APK exists on GitHub...");
+      const checkUrl = `${apiUrl}/api/upload/check-apk?appName=${encodeURIComponent(selectedApp.name)}&packageName=${encodeURIComponent(selectedApp.packageName)}&versionName=${encodeURIComponent(updateVersion)}&checksum=${checksum}`;
+      const checkRes = await adminFetch(checkUrl);
+      const checkData = await checkRes.json();
+
+      let apkData;
+      if (checkData.success && checkData.data.exists) {
+        console.log("[handleReleaseUpdate] APK found on GitHub, skipping upload!");
+        apkData = checkData;
+        setUploadStatus("Existing APK found on GitHub, reused!");
         setUploadProgress(100);
+      } else {
+        console.log("[handleReleaseUpdate] APK not found on GitHub, uploading file...");
+        const apkFormData = new FormData();
+        apkFormData.append("file", updateApkFile);
+        apkFormData.append("appName", selectedApp.name);
+        apkFormData.append("packageName", selectedApp.packageName);
+        apkFormData.append("versionName", updateVersion);
+        setUploadStatus("Uploading APK...");
+        const apkRes = await uploadWithProgress(
+          `${apiUrl}/api/upload/apk`,
+          apkFormData,
+          token,
+          "Uploading APK",
+        );
+        apkData = apkRes;
+        if (!apkData.success) throw new Error("APK upload failed");
       }
 
       // 2. Upload new Icon if provided

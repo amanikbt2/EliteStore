@@ -195,3 +195,85 @@ export const uploadApk = async (req: Request, res: Response): Promise<void> => {
     sendError(res, error.message || "APK upload failed", 500);
   }
 };
+
+export const checkApkExists = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const { appName, packageName, versionName, checksum } = req.query;
+
+    if (!appName || !packageName || !versionName) {
+      sendError(res, "Missing required parameters: appName, packageName, versionName", 400);
+      return;
+    }
+
+    const githubToken = process.env.GITHUB_TOKEN;
+    const githubOwner = process.env.GITHUB_OWNER;
+    const githubRepo = process.env.GITHUB_REPO;
+
+    if (!githubToken || !githubOwner || !githubRepo) {
+      sendError(res, "GitHub upload not configured", 500);
+      return;
+    }
+
+    const cleanName = (appName as string).replace(/[^a-zA-Z0-9]/g, "_");
+    const assetName = `${cleanName}_${packageName}_v${versionName}.apk`;
+
+    const listReleasesUrl = `https://api.github.com/repos/${githubOwner}/${githubRepo}/releases`;
+    const listRes = await globalThis.fetch(listReleasesUrl, {
+      method: "GET",
+      headers: {
+        Authorization: `token ${githubToken}`,
+        Accept: "application/vnd.github+json",
+      },
+    });
+
+    if (!listRes.ok) {
+      throw new Error(`Failed to list GitHub releases: ${listRes.status}`);
+    }
+
+    const releases = await listRes.json();
+    let foundAsset: any = null;
+    let foundRelease: any = null;
+
+    const normalize = (s: string) =>
+      s.replace(/[^a-zA-Z0-9]+/g, "_").toLowerCase();
+
+    for (const r of releases) {
+      const assets = r.assets || [];
+      const match = assets.find(
+        (a: any) => normalize(a.name) === normalize(assetName)
+      );
+      if (match) {
+        foundAsset = match;
+        foundRelease = r;
+        break;
+      }
+    }
+
+    if (foundAsset?.browser_download_url) {
+      sendSuccess(
+        res,
+        {
+          exists: true,
+          url: foundAsset.browser_download_url,
+          fileId: foundAsset.id,
+          fileSize: foundAsset.size,
+          checksum: checksum || "unknown",
+          skippedUpload: true,
+          releaseId: foundRelease?.id,
+          releaseTag: foundRelease?.tag_name,
+        },
+        "APK exists in GitHub release"
+      );
+    } else {
+      sendSuccess(
+        res,
+        { exists: false },
+        "APK does not exist in GitHub releases"
+      );
+    }
+  } catch (error: any) {
+    console.error("Check APK Error:", error);
+    sendError(res, error.message || "Failed to check APK existence", 500);
+  }
+};
+
