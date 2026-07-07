@@ -59,6 +59,55 @@ export const uploadApk = async (req: Request, res: Response): Promise<void> => {
     }
 
     const releaseTag = process.env.GITHUB_RELEASE_TAG || "latest";
+    // First, try to find an existing asset with the same name across all releases
+    const listReleasesUrl = `https://api.github.com/repos/${githubOwner}/${githubRepo}/releases`;
+    const listRes = await globalThis.fetch(listReleasesUrl, {
+      method: "GET",
+      headers: {
+        Authorization: `token ${githubToken}`,
+        Accept: "application/vnd.github+json",
+      },
+    });
+
+    if (!listRes.ok) {
+      throw new Error(`Failed to list GitHub releases: ${listRes.status}`);
+    }
+
+    const releases = await listRes.json();
+    const assetName = fileName;
+
+    let foundAsset: any = null;
+    let foundRelease: any = null;
+
+    for (const r of releases) {
+      const assets = r.assets || [];
+      const match = assets.find((a: any) => a.name === assetName);
+      if (match) {
+        foundAsset = match;
+        foundRelease = r;
+        break;
+      }
+    }
+
+    if (foundAsset?.browser_download_url) {
+      sendSuccess(
+        res,
+        {
+          url: foundAsset.browser_download_url,
+          fileId: foundAsset.id,
+          fileSize: req.file.size,
+          checksum,
+          skippedUpload: true,
+          releaseId: foundRelease?.id,
+          releaseTag: foundRelease?.tag_name,
+        },
+        "APK already exists in an existing release, reused",
+      );
+      return;
+    }
+
+    // If not found, ensure release with configured tag exists (create if needed)
+    const releaseTag = process.env.GITHUB_RELEASE_TAG || "latest";
     const releaseApiUrl = `https://api.github.com/repos/${githubOwner}/${githubRepo}/releases/tags/${releaseTag}`;
 
     let release: any;
@@ -99,27 +148,6 @@ export const uploadApk = async (req: Request, res: Response): Promise<void> => {
       release = await createReleaseRes.json();
     } else {
       throw new Error("Failed to access GitHub release");
-    }
-
-    const assetName = fileName;
-    const existingAssets = release.assets || [];
-    const existingAsset = existingAssets.find(
-      (asset: any) => asset.name === assetName,
-    );
-
-    if (existingAsset?.browser_download_url) {
-      sendSuccess(
-        res,
-        {
-          url: existingAsset.browser_download_url,
-          fileId: existingAsset.id,
-          fileSize: req.file.size,
-          checksum,
-          skippedUpload: true,
-        },
-        "APK already exists, reused",
-      );
-      return;
     }
 
     const uploadUrl = `https://uploads.github.com/repos/${githubOwner}/${githubRepo}/releases/${release.id}/assets?name=${encodeURIComponent(assetName)}`;
