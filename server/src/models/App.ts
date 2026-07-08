@@ -20,6 +20,11 @@ export interface IApp extends Document {
   isTrending: boolean;
   isFeatured: boolean;
   downloadEnabled: boolean;
+  useVirtualMetrics: boolean;
+  virtualRating: number;
+  virtualDownloads: number;
+  realRating?: number;
+  realDownloads?: number;
   status: 'published' | 'hidden' | 'deleted';
   createdAt: Date;
   updatedAt: Date;
@@ -45,6 +50,9 @@ const AppSchema: Schema = new Schema({
   isTrending: { type: Boolean, default: false },
   isFeatured: { type: Boolean, default: false },
   downloadEnabled: { type: Boolean, default: true },
+  useVirtualMetrics: { type: Boolean, default: false },
+  virtualRating: { type: Number, default: 4.5, min: 0, max: 5 },
+  virtualDownloads: { type: Number, default: 1000 },
   status: { type: String, enum: ['published', 'hidden', 'deleted'], default: 'published' }
 }, { timestamps: true });
 

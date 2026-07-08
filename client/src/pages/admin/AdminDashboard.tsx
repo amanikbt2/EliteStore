@@ -75,10 +75,23 @@ export default function AdminDashboard() {
   const [uploadStatus, setUploadStatus] = useState("");
   const [uploadEta, setUploadEta] = useState("");
 
+  const [useVirtualMetrics, setUseVirtualMetrics] = useState(false);
+  const [virtualRating, setVirtualRating] = useState("4.5");
+  const [virtualDownloads, setVirtualDownloads] = useState("1000");
+  const [isUpdatingVirtual, setIsUpdatingVirtual] = useState(false);
+
   useEffect(() => {
     fetchApps();
     fetchStats();
   }, []);
+
+  useEffect(() => {
+    if (selectedApp) {
+      setUseVirtualMetrics(selectedApp.useVirtualMetrics || false);
+      setVirtualRating(selectedApp.virtualRating !== undefined ? selectedApp.virtualRating.toString() : "4.5");
+      setVirtualDownloads(selectedApp.virtualDownloads !== undefined ? selectedApp.virtualDownloads.toString() : "1000");
+    }
+  }, [selectedApp]);
 
   useEffect(() => {
     let intervalId: any;
@@ -590,6 +603,40 @@ export default function AdminDashboard() {
     }
   };
 
+  const handleSaveVirtualMetrics = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!selectedApp) return;
+
+    setIsUpdatingVirtual(true);
+    const toastId = toast.loading("Saving virtual metrics...");
+
+    try {
+      const apiUrl = import.meta.env.VITE_API_URL || "http://127.0.0.1:5000";
+      const res = await adminFetch(`${apiUrl}/api/apps/${selectedApp.packageName}/virtual-metrics`, {
+        method: "PATCH",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          useVirtualMetrics,
+          virtualRating: Number(virtualRating),
+          virtualDownloads: Number(virtualDownloads),
+        }),
+      });
+
+      const data = await res.json();
+      if (!data.success) throw new Error(data.message || "Failed to update virtual metrics");
+
+      toast.success("Virtual metrics updated successfully!", { id: toastId });
+      setSelectedApp(data.data.app);
+      fetchApps();
+    } catch (error: any) {
+      toast.error(error.message || "Error saving metrics", { id: toastId });
+    } finally {
+      setIsUpdatingVirtual(false);
+    }
+  };
+
   // --- SUB COMPONENTS ---
 
   const renderOverview = () => (
@@ -700,12 +747,22 @@ export default function AdminDashboard() {
                   </p>
 
                   <div className="flex items-center gap-3 text-xs font-medium text-gray-400">
-                    <span className="flex items-center gap-1">
+                    <span className="flex items-center gap-1 relative">
                       <Star className="w-3.5 h-3.5 text-yellow-500 fill-yellow-500" />{" "}
                       {app.rating || 0}
+                      {app.useVirtualMetrics && (
+                        <sup className="text-[9px] text-red-400 font-bold ml-0.5" title="Real Rating">
+                          ({app.realRating || 0})
+                        </sup>
+                      )}
                     </span>
-                    <span className="flex items-center gap-1">
+                    <span className="flex items-center gap-1 relative">
                       <Download className="w-3.5 h-3.5" /> {app.downloads || 0}
+                      {app.useVirtualMetrics && (
+                        <sup className="text-[9px] text-red-400 font-bold ml-0.5" title="Real Downloads">
+                          ({app.realDownloads || 0})
+                        </sup>
+                      )}
                     </span>
                   </div>
                 </div>
@@ -953,8 +1010,22 @@ export default function AdminDashboard() {
             <span className="px-2 py-1 bg-green-500/10 text-green-400 rounded-md font-semibold">
               Published
             </span>
-            <span className="text-gray-400">
+            <span className="text-gray-400 relative">
               {selectedApp?.downloads} Downloads
+              {selectedApp?.useVirtualMetrics && (
+                <sup className="text-[10px] text-red-400 font-bold ml-1" title="Real Downloads">
+                  ({selectedApp?.realDownloads})
+                </sup>
+              )}
+            </span>
+            <span className="text-gray-400 flex items-center gap-1 relative">
+              <Star className="w-4 h-4 text-yellow-500 fill-yellow-500" />
+              <span>{selectedApp?.rating || 0}</span>
+              {selectedApp?.useVirtualMetrics && (
+                <sup className="text-[10px] text-red-400 font-bold ml-0.5" title="Real Rating">
+                  ({selectedApp?.realRating || 0})
+                </sup>
+              )}
             </span>
           </div>
         </div>
@@ -1177,6 +1248,64 @@ export default function AdminDashboard() {
                   </div>
                 )}
               </div>
+            </form>
+          </div>
+
+          {/* Hype Metrics (Virtual) Section */}
+          <div className="bg-surface-dark p-6 rounded-3xl shadow-xl border border-gray-100/5">
+            <h3 className="text-lg font-bold text-text flex items-center gap-2 mb-4">
+              <Star className="w-5 h-5 text-yellow-400" /> Hype Metrics (Virtual)
+            </h3>
+            <form className="space-y-4" onSubmit={handleSaveVirtualMetrics}>
+              <div className="flex items-center gap-3 bg-background-darker border border-gray-700/50 p-4 rounded-xl">
+                <input
+                  type="checkbox"
+                  id="useVirtualMetrics"
+                  checked={useVirtualMetrics}
+                  onChange={(e) => setUseVirtualMetrics(e.target.checked)}
+                  className="w-4.5 h-4.5 text-primary bg-background border-gray-700 rounded focus:ring-primary focus:ring-2 cursor-pointer"
+                />
+                <label htmlFor="useVirtualMetrics" className="text-sm font-medium text-text cursor-pointer select-none">
+                  Enable Virtual Ratings & Downloads (Hyped)
+                </label>
+              </div>
+
+              {useVirtualMetrics && (
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 animate-in fade-in slide-in-from-top-2 duration-200">
+                  <div>
+                    <label className="text-sm font-medium text-text-muted mb-1 block">Virtual Rating (0 - 5)</label>
+                    <input
+                      type="number"
+                      min="0"
+                      max="5"
+                      step="0.1"
+                      placeholder="e.g. 4.8"
+                      value={virtualRating}
+                      onChange={(e) => setVirtualRating(e.target.value)}
+                      className="w-full bg-background-darker border border-gray-700 rounded-lg px-4 py-2.5 text-text focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent transition-all"
+                    />
+                  </div>
+                  <div>
+                    <label className="text-sm font-medium text-text-muted mb-1 block">Virtual Downloads</label>
+                    <input
+                      type="number"
+                      min="0"
+                      placeholder="e.g. 2500"
+                      value={virtualDownloads}
+                      onChange={(e) => setVirtualDownloads(e.target.value)}
+                      className="w-full bg-background-darker border border-gray-700 rounded-lg px-4 py-2.5 text-text focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent transition-all"
+                    />
+                  </div>
+                </div>
+              )}
+
+              <button
+                type="submit"
+                disabled={isUpdatingVirtual}
+                className="w-full bg-primary hover:bg-blue-600 disabled:opacity-50 text-white px-4 py-3 rounded-xl font-bold transition-all shadow-md mt-2"
+              >
+                {isUpdatingVirtual ? "Saving..." : "Save Hype Metrics"}
+              </button>
             </form>
           </div>
         </div>

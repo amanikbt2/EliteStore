@@ -33,7 +33,19 @@ export const getApps = async (req: Request, res: Response): Promise<void> => {
 
     const total = await App.countDocuments(query);
 
-    sendSuccess(res, { apps, total, page: Number(page), pages: Math.ceil(total / Number(limit)) }, 'Apps fetched');
+    // Transform apps to virtualize metrics if enabled
+    const transformedApps = apps.map(app => {
+      const appObj = app.toObject();
+      appObj.realRating = appObj.rating;
+      appObj.realDownloads = appObj.downloads;
+      if (appObj.useVirtualMetrics) {
+        appObj.rating = appObj.virtualRating;
+        appObj.downloads = appObj.virtualDownloads;
+      }
+      return appObj;
+    });
+
+    sendSuccess(res, { apps: transformedApps, total, page: Number(page), pages: Math.ceil(total / Number(limit)) }, 'Apps fetched');
   } catch (error) {
     sendError(res, 'Error fetching apps', 500);
   }
@@ -58,8 +70,15 @@ export const getAppByPackageName = async (req: Request, res: Response): Promise<
     const versions = await Version.find({ appId: app._id, status: 'active' }).sort({ versionCode: -1 });
     const latestVersion = versions.length > 0 ? versions[0] : null;
     
-    // Attach versions to the app object for the frontend
-    const appData = { ...app.toObject(), versions };
+    // Attach versions to the app object for the frontend and virtualize metrics if enabled
+    const appObj = app.toObject();
+    appObj.realRating = appObj.rating;
+    appObj.realDownloads = appObj.downloads;
+    if (appObj.useVirtualMetrics) {
+      appObj.rating = appObj.virtualRating;
+      appObj.downloads = appObj.virtualDownloads;
+    }
+    const appData = { ...appObj, versions };
     
     sendSuccess(res, { app: appData, latestVersion }, 'App fetched');
   } catch (error) {
@@ -402,5 +421,37 @@ export const downloadApkFile = async (req: Request, res: Response): Promise<void
   } catch (error) {
     console.error('Download proxy error:', error);
     res.status(500).send('Error downloading file');
+  }
+};
+
+export const updateVirtualMetrics = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const { packageName } = req.params;
+    const { useVirtualMetrics, virtualRating, virtualDownloads } = req.body;
+
+    const app = await App.findOne({ packageName });
+    if (!app) {
+      sendError(res, 'App not found', 404);
+      return;
+    }
+
+    if (useVirtualMetrics !== undefined) app.useVirtualMetrics = useVirtualMetrics;
+    if (virtualRating !== undefined) app.virtualRating = Number(virtualRating);
+    if (virtualDownloads !== undefined) app.virtualDownloads = Number(virtualDownloads);
+
+    await app.save();
+
+    const appObj = app.toObject();
+    appObj.realRating = appObj.rating;
+    appObj.realDownloads = appObj.downloads;
+    if (appObj.useVirtualMetrics) {
+      appObj.rating = appObj.virtualRating;
+      appObj.downloads = appObj.virtualDownloads;
+    }
+
+    sendSuccess(res, { app: appObj }, 'Virtual metrics updated successfully');
+  } catch (error) {
+    console.error('Update Virtual Metrics Error:', error);
+    sendError(res, 'Error updating virtual metrics', 500);
   }
 };
