@@ -16,10 +16,11 @@ import {
   Check,
   Trash2,
   Activity,
-  Globe2,
   Eraser,
   ToggleLeft,
   ToggleRight,
+  Terminal,
+  Loader2,
 } from "lucide-react";
 
 const calculateFileSHA256 = async (file: File): Promise<string> => {
@@ -1351,9 +1352,68 @@ export default function AdminDashboard() {
   );
 
   const renderLogs = () => {
+    const getLogLine = (log: any) => {
+      const time = new Date(log.createdAt).toISOString().replace("T", " ").substring(0, 19);
+      let actionPrefix = "[INFO]";
+      let colorClass = "text-emerald-400";
+      let message = "";
+
+      const location = log.metadata?.country
+        ? `(${log.metadata.city ? log.metadata.city + ", " : ""}${log.metadata.country})`
+        : "";
+      const ref = log.metadata?.referrer && log.metadata.referrer !== "Direct"
+        ? `via ${log.metadata.referrer}`
+        : "";
+
+      switch (log.action) {
+        case "entered_store":
+          actionPrefix = "[INFO]";
+          colorClass = "text-emerald-400";
+          message = `User entered the storefront ${ref} ${location}`;
+          break;
+        case "view_app":
+          actionPrefix = "[VIEW]";
+          colorClass = "text-blue-400";
+          message = `User viewed app: "${log.packageName}" ${ref} ${location}`;
+          break;
+        case "install_app":
+          actionPrefix = "[INSTALL]";
+          colorClass = "text-amber-400";
+          message = `User clicked install on: "${log.packageName}" ${location}`;
+          break;
+        case "copy_link":
+          actionPrefix = "[SHARE]";
+          colorClass = "text-indigo-400";
+          message = `User copied link for app: "${log.packageName}" ${location}`;
+          break;
+        case "submit_review":
+          actionPrefix = "[REVIEW]";
+          colorClass = "text-purple-400";
+          message = `User submitted a ${log.metadata?.rating}-star review for: "${log.packageName}" ${location}`;
+          break;
+        default:
+          actionPrefix = "[LOG]";
+          colorClass = "text-gray-400";
+          message = `Activity: ${log.action} for ${log.packageName || "unknown"}`;
+      }
+
+      return (
+        <div
+          key={log._id}
+          className="py-1.5 border-b border-gray-900/30 hover:bg-white/5 px-3 rounded transition-colors flex flex-wrap items-center gap-x-2"
+        >
+          <span className="text-gray-500 shrink-0 select-none">{time}</span>
+          <span className={`${colorClass} font-bold shrink-0 select-none`}>
+            {actionPrefix}
+          </span>
+          <span className="text-gray-300 flex-1">{message}</span>
+        </div>
+      );
+    };
+
     return (
-      <div className="animate-in fade-in slide-in-from-bottom-4 duration-500 max-w-5xl mx-auto">
-        <div className="flex items-center justify-between mb-8">
+      <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
+        <div className="flex justify-between items-center">
           <div>
             <h3 className="text-2xl font-bold text-text">Activity Logs</h3>
             <p className="text-text-muted mt-1">
@@ -1362,95 +1422,49 @@ export default function AdminDashboard() {
           </div>
           <button
             onClick={handleClearLogs}
-            className="flex items-center gap-2 bg-red-500/10 hover:bg-red-500/20 text-red-500 border border-red-500/20 px-4 py-2 rounded-lg font-medium transition-colors"
+            className="flex items-center gap-2 bg-red-500/10 hover:bg-red-500/20 text-red-500 border border-red-500/20 px-4 py-2 rounded-lg font-medium transition-colors cursor-pointer"
           >
             <Eraser className="w-4 h-4" /> Clear Logs
           </button>
         </div>
 
-        <div className="bg-surface-dark border border-gray-100/5 rounded-3xl overflow-hidden shadow-xl">
-          {isFetchingLogs ? (
-            <div className="p-12 text-center text-text-muted">
-              Loading logs...
+        <div className="bg-black/90 rounded-3xl overflow-hidden shadow-2xl border border-gray-800">
+          {/* Terminal Title Bar */}
+          <div className="bg-gray-900/90 px-5 py-3 flex items-center justify-between border-b border-gray-800">
+            <div className="flex items-center gap-2">
+              <span className="w-3.5 h-3.5 rounded-full bg-red-500 shadow-md"></span>
+              <span className="w-3.5 h-3.5 rounded-full bg-yellow-500 shadow-md"></span>
+              <span className="w-3.5 h-3.5 rounded-full bg-green-500 shadow-md"></span>
             </div>
-          ) : logs.length === 0 ? (
-            <div className="p-12 text-center text-text-muted">
-              No activity logs found.
+            <div className="text-xs font-mono text-gray-400 select-none">
+              activity_monitor@elitestore:~ $ tail -n 100 logs.log
             </div>
-          ) : (
-            <div className="divide-y divide-gray-800/50">
-              {logs.map((log) => (
-                <div
-                  key={log._id}
-                  className="p-5 flex items-start gap-4 hover:bg-gray-800/20 transition-colors"
-                >
-                  <div className="mt-1 w-10 h-10 bg-primary/10 rounded-full flex items-center justify-center shrink-0">
-                    <Activity className="w-5 h-5 text-primary" />
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <div className="flex flex-wrap items-center justify-between gap-2">
-                      <p className="text-text font-medium">
-                        {log.action === "entered_store" && (
-                          <span>Entered the Storefront</span>
-                        )}
-                        {log.action === "view_app" && (
-                          <span>
-                            Viewed{" "}
-                            <span className="text-primary">
-                              {log.packageName}
-                            </span>
-                          </span>
-                        )}
-                        {log.action === "install_app" && (
-                          <span>
-                            Clicked Install on{" "}
-                            <span className="text-primary">
-                              {log.packageName}
-                            </span>
-                          </span>
-                        )}
-                        {log.action === "copy_link" && (
-                          <span>
-                            Copied link for{" "}
-                            <span className="text-primary">
-                              {log.packageName}
-                            </span>
-                          </span>
-                        )}
-                        {log.action === "submit_review" && (
-                          <span>
-                            Submitted a {log.metadata?.rating}-star review for{" "}
-                            <span className="text-primary">
-                              {log.packageName}
-                            </span>
-                          </span>
-                        )}
-                      </p>
-                      <span className="text-xs text-text-muted whitespace-nowrap">
-                        {new Date(log.createdAt).toLocaleString()}
-                      </span>
-                    </div>
+            <Terminal className="w-4 h-4 text-gray-500" />
+          </div>
 
-                    <div className="mt-2 flex flex-wrap items-center gap-3 text-xs text-text-muted">
-                      {log.metadata?.country && (
-                        <span className="flex items-center gap-1.5 bg-blue-500/10 text-blue-400 px-2.5 py-1 rounded-full border border-blue-500/20 font-medium">
-                          <Globe2 className="w-3.5 h-3.5" />
-                          {log.metadata.city ? `${log.metadata.city}, ` : ""}
-                          {log.metadata.country}
-                        </span>
-                      )}
-                      {log.metadata?.referrer &&
-                        log.metadata.referrer !== "Direct" && (
-                          <span className="bg-gray-800/50 px-2 py-1 rounded-md border border-gray-700/50">
-                            Ref: {log.metadata.referrer}
-                          </span>
-                        )}
-                    </div>
-                  </div>
+          {/* Terminal Body */}
+          <div className="font-mono text-xs sm:text-sm p-4 overflow-y-auto min-h-[400px] max-h-[600px] scrollbar-thin scrollbar-thumb-gray-800 scrollbar-track-transparent">
+            {isFetchingLogs ? (
+              <div className="h-[350px] flex flex-col items-center justify-center text-gray-500 gap-3">
+                <Loader2 className="w-6 h-6 animate-spin text-primary" />
+                <span>Initializing monitor...</span>
+              </div>
+            ) : logs.length === 0 ? (
+              <div className="h-[350px] flex items-center justify-center text-gray-500 font-mono">
+                [SYSTEM] No activity logs found. Waiting for client events...
+              </div>
+            ) : (
+              <div className="space-y-1">
+                {logs.map(getLogLine)}
+
+                {/* Blinking Prompt Line at bottom */}
+                <div className="pt-2 text-gray-500 flex items-center gap-2 select-none border-t border-gray-900/50 mt-2">
+                  <span>admin@elitestore:~$</span>
+                  <span className="w-2.5 h-4 bg-primary animate-pulse inline-block"></span>
                 </div>
-              ))}
-            </div>
-          )}
+              </div>
+            )}
+          </div>
         </div>
       </div>
     );
