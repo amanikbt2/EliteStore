@@ -354,6 +354,7 @@ export default function AdminDashboard() {
         body: JSON.stringify({
           name: appName,
           packageName,
+          versionName,
           developer,
           description,
           iconUrl: iconData.data.url,
