@@ -52,6 +52,7 @@ export default function AdminDashboard() {
   const [developer, setDeveloper] = useState("");
   const [appSize, setAppSize] = useState("");
   const [description, setDescription] = useState("");
+  const [versionName, setVersionName] = useState("");
 
   const [iconFile, setIconFile] = useState<File | null>(null);
   const [apkFile, setApkFile] = useState<File | null>(null);
@@ -89,8 +90,16 @@ export default function AdminDashboard() {
   useEffect(() => {
     if (selectedApp) {
       setUseVirtualMetrics(selectedApp.useVirtualMetrics || false);
-      setVirtualRating(selectedApp.virtualRating !== undefined ? selectedApp.virtualRating.toString() : "4.5");
-      setVirtualDownloads(selectedApp.virtualDownloads !== undefined ? selectedApp.virtualDownloads.toString() : "1000");
+      setVirtualRating(
+        selectedApp.virtualRating !== undefined
+          ? selectedApp.virtualRating.toString()
+          : "4.5",
+      );
+      setVirtualDownloads(
+        selectedApp.virtualDownloads !== undefined
+          ? selectedApp.virtualDownloads.toString()
+          : "1000",
+      );
     }
   }, [selectedApp]);
 
@@ -117,7 +126,7 @@ export default function AdminDashboard() {
     const token = localStorage.getItem("adminToken");
     const headers = {
       ...options.headers,
-      "Authorization": `Bearer ${token}`
+      Authorization: `Bearer ${token}`,
     };
     const res = await fetch(url, { ...options, headers });
     if (res.status === 401) {
@@ -244,6 +253,7 @@ export default function AdminDashboard() {
     if (
       !appName ||
       !packageName ||
+      !versionName ||
       !developer ||
       !description ||
       !iconFile ||
@@ -282,7 +292,7 @@ export default function AdminDashboard() {
       const checksum = await calculateFileSHA256(apkFile);
 
       setUploadStatus("Checking if APK exists on GitHub...");
-      const checkUrl = `${apiUrl}/api/upload/check-apk?appName=${encodeURIComponent(appName)}&packageName=${encodeURIComponent(packageName)}&versionName=1.0.0&checksum=${checksum}`;
+      const checkUrl = `${apiUrl}/api/upload/check-apk?appName=${encodeURIComponent(appName)}&packageName=${encodeURIComponent(packageName)}&versionName=${encodeURIComponent(versionName)}&checksum=${checksum}`;
       const checkRes = await adminFetch(checkUrl);
       const checkData = await checkRes.json();
 
@@ -293,12 +303,14 @@ export default function AdminDashboard() {
         setUploadStatus("Existing APK found on GitHub, reused!");
         setUploadProgress(100);
       } else {
-        console.log("[handlePublish] APK not found on GitHub, uploading file...");
+        console.log(
+          "[handlePublish] APK not found on GitHub, uploading file...",
+        );
         const apkFormData = new FormData();
         apkFormData.append("file", apkFile);
         apkFormData.append("appName", appName);
         apkFormData.append("packageName", packageName);
-        apkFormData.append("versionName", "1.0.0");
+        apkFormData.append("versionName", versionName);
         setUploadStatus("Uploading APK...");
         const apkRes = await uploadWithProgress(
           `${apiUrl}/api/upload/apk`,
@@ -366,6 +378,7 @@ export default function AdminDashboard() {
       // Reset form
       setAppName("");
       setPackageName("");
+      setVersionName("");
       setDeveloper("");
       setAppSize("");
       setDescription("");
@@ -407,12 +420,16 @@ export default function AdminDashboard() {
 
       let apkData;
       if (checkData.success && checkData.data.exists) {
-        console.log("[handleReleaseUpdate] APK found on GitHub, skipping upload!");
+        console.log(
+          "[handleReleaseUpdate] APK found on GitHub, skipping upload!",
+        );
         apkData = checkData;
         setUploadStatus("Existing APK found on GitHub, reused!");
         setUploadProgress(100);
       } else {
-        console.log("[handleReleaseUpdate] APK not found on GitHub, uploading file...");
+        console.log(
+          "[handleReleaseUpdate] APK not found on GitHub, uploading file...",
+        );
         const apkFormData = new FormData();
         apkFormData.append("file", updateApkFile);
         apkFormData.append("appName", selectedApp.name);
@@ -498,7 +515,7 @@ export default function AdminDashboard() {
       fetchStats();
       // Refresh selected app data
       const updatedAppRes = await adminFetch(
-        `${apiUrl}/api/apps/${selectedApp.packageName}`
+        `${apiUrl}/api/apps/${selectedApp.packageName}`,
       );
       const updatedApp = await updatedAppRes.json();
       if (updatedApp.success) setSelectedApp(updatedApp.data.app);
@@ -585,9 +602,12 @@ export default function AdminDashboard() {
 
     try {
       const apiUrl = import.meta.env.VITE_API_URL || "http://127.0.0.1:5000";
-      const res = await adminFetch(`${apiUrl}/api/apps/${selectedApp.packageName}`, {
-        method: "DELETE",
-      });
+      const res = await adminFetch(
+        `${apiUrl}/api/apps/${selectedApp.packageName}`,
+        {
+          method: "DELETE",
+        },
+      );
 
       const result = await res.json();
       if (!result.success)
@@ -613,20 +633,24 @@ export default function AdminDashboard() {
 
     try {
       const apiUrl = import.meta.env.VITE_API_URL || "http://127.0.0.1:5000";
-      const res = await adminFetch(`${apiUrl}/api/apps/${selectedApp.packageName}/virtual-metrics`, {
-        method: "PATCH",
-        headers: {
-          "Content-Type": "application/json",
+      const res = await adminFetch(
+        `${apiUrl}/api/apps/${selectedApp.packageName}/virtual-metrics`,
+        {
+          method: "PATCH",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            useVirtualMetrics,
+            virtualRating: Number(virtualRating),
+            virtualDownloads: Number(virtualDownloads),
+          }),
         },
-        body: JSON.stringify({
-          useVirtualMetrics,
-          virtualRating: Number(virtualRating),
-          virtualDownloads: Number(virtualDownloads),
-        }),
-      });
+      );
 
       const data = await res.json();
-      if (!data.success) throw new Error(data.message || "Failed to update virtual metrics");
+      if (!data.success)
+        throw new Error(data.message || "Failed to update virtual metrics");
 
       toast.success("Virtual metrics updated successfully!", { id: toastId });
       setSelectedApp(data.data.app);
@@ -752,7 +776,10 @@ export default function AdminDashboard() {
                       <Star className="w-3.5 h-3.5 text-yellow-500 fill-yellow-500" />{" "}
                       {app.rating || 0}
                       {app.useVirtualMetrics && (
-                        <sup className="text-[9px] text-red-400 font-bold ml-0.5" title="Real Rating">
+                        <sup
+                          className="text-[9px] text-red-400 font-bold ml-0.5"
+                          title="Real Rating"
+                        >
                           ({app.realRating || 0})
                         </sup>
                       )}
@@ -760,7 +787,10 @@ export default function AdminDashboard() {
                     <span className="flex items-center gap-1 relative">
                       <Download className="w-3.5 h-3.5" /> {app.downloads || 0}
                       {app.useVirtualMetrics && (
-                        <sup className="text-[9px] text-red-400 font-bold ml-0.5" title="Real Downloads">
+                        <sup
+                          className="text-[9px] text-red-400 font-bold ml-0.5"
+                          title="Real Downloads"
+                        >
                           ({app.realDownloads || 0})
                         </sup>
                       )}
@@ -815,7 +845,7 @@ export default function AdminDashboard() {
             </div>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
             <div className="space-y-2">
               <label className="text-sm font-medium text-text-muted">
                 Developer Name
@@ -825,6 +855,18 @@ export default function AdminDashboard() {
                 placeholder="e.g., Amani Kibet"
                 value={developer}
                 onChange={(e) => setDeveloper(e.target.value)}
+                className="w-full bg-background-darker border border-gray-700 rounded-lg px-4 py-3 text-text focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent transition-all"
+              />
+            </div>
+            <div className="space-y-2">
+              <label className="text-sm font-medium text-text-muted">
+                Version Name
+              </label>
+              <input
+                type="text"
+                placeholder="e.g., 1.0.1"
+                value={versionName}
+                onChange={(e) => setVersionName(e.target.value)}
                 className="w-full bg-background-darker border border-gray-700 rounded-lg px-4 py-3 text-text focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent transition-all"
               />
             </div>
@@ -1014,7 +1056,10 @@ export default function AdminDashboard() {
             <span className="text-gray-400 relative">
               {selectedApp?.downloads} Downloads
               {selectedApp?.useVirtualMetrics && (
-                <sup className="text-[10px] text-red-400 font-bold ml-1" title="Real Downloads">
+                <sup
+                  className="text-[10px] text-red-400 font-bold ml-1"
+                  title="Real Downloads"
+                >
                   ({selectedApp?.realDownloads})
                 </sup>
               )}
@@ -1023,7 +1068,10 @@ export default function AdminDashboard() {
               <Star className="w-4 h-4 text-yellow-500 fill-yellow-500" />
               <span>{selectedApp?.rating || 0}</span>
               {selectedApp?.useVirtualMetrics && (
-                <sup className="text-[10px] text-red-400 font-bold ml-0.5" title="Real Rating">
+                <sup
+                  className="text-[10px] text-red-400 font-bold ml-0.5"
+                  title="Real Rating"
+                >
                   ({selectedApp?.realRating || 0})
                 </sup>
               )}
@@ -1255,7 +1303,8 @@ export default function AdminDashboard() {
           {/* Hype Metrics (Virtual) Section */}
           <div className="bg-surface-dark p-6 rounded-3xl shadow-xl border border-gray-100/5">
             <h3 className="text-lg font-bold text-text flex items-center gap-2 mb-4">
-              <Star className="w-5 h-5 text-yellow-400" /> Hype Metrics (Virtual)
+              <Star className="w-5 h-5 text-yellow-400" /> Hype Metrics
+              (Virtual)
             </h3>
             <form className="space-y-4" onSubmit={handleSaveVirtualMetrics}>
               <div className="flex items-center gap-3 bg-background-darker border border-gray-700/50 p-4 rounded-xl">
@@ -1266,7 +1315,10 @@ export default function AdminDashboard() {
                   onChange={(e) => setUseVirtualMetrics(e.target.checked)}
                   className="w-4.5 h-4.5 text-primary bg-background border-gray-700 rounded focus:ring-primary focus:ring-2 cursor-pointer"
                 />
-                <label htmlFor="useVirtualMetrics" className="text-sm font-medium text-text cursor-pointer select-none">
+                <label
+                  htmlFor="useVirtualMetrics"
+                  className="text-sm font-medium text-text cursor-pointer select-none"
+                >
                   Enable Virtual Ratings & Downloads (Hyped)
                 </label>
               </div>
@@ -1274,7 +1326,9 @@ export default function AdminDashboard() {
               {useVirtualMetrics && (
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4 animate-in fade-in slide-in-from-top-2 duration-200">
                   <div>
-                    <label className="text-sm font-medium text-text-muted mb-1 block">Virtual Rating (0 - 5)</label>
+                    <label className="text-sm font-medium text-text-muted mb-1 block">
+                      Virtual Rating (0 - 5)
+                    </label>
                     <input
                       type="number"
                       min="0"
@@ -1287,7 +1341,9 @@ export default function AdminDashboard() {
                     />
                   </div>
                   <div>
-                    <label className="text-sm font-medium text-text-muted mb-1 block">Virtual Downloads</label>
+                    <label className="text-sm font-medium text-text-muted mb-1 block">
+                      Virtual Downloads
+                    </label>
                     <input
                       type="number"
                       min="0"
@@ -1353,7 +1409,10 @@ export default function AdminDashboard() {
 
   const renderLogs = () => {
     const getLogLine = (log: any) => {
-      const time = new Date(log.createdAt).toISOString().replace("T", " ").substring(0, 19);
+      const time = new Date(log.createdAt)
+        .toISOString()
+        .replace("T", " ")
+        .substring(0, 19);
       let actionPrefix = "[INFO]";
       let colorClass = "text-emerald-400";
       let message = "";
@@ -1361,9 +1420,10 @@ export default function AdminDashboard() {
       const location = log.metadata?.country
         ? `(${log.metadata.city ? log.metadata.city + ", " : ""}${log.metadata.country})`
         : "";
-      const ref = log.metadata?.referrer && log.metadata.referrer !== "Direct"
-        ? `via ${log.metadata.referrer}`
-        : "";
+      const ref =
+        log.metadata?.referrer && log.metadata.referrer !== "Direct"
+          ? `via ${log.metadata.referrer}`
+          : "";
 
       switch (log.action) {
         case "entered_store":
