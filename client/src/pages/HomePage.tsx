@@ -28,7 +28,10 @@ export default function HomePage() {
           packageName: 'Storefront',
           metadata: {
             ...metadata,
-            referrer: document.referrer || 'Direct'
+            referrer: (() => {
+              const params = new URLSearchParams(window.location.search);
+              return params.get('ref') || params.get('utm_source') || document.referrer || 'Direct';
+            })()
           }
         })
       });
